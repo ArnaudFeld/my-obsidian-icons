@@ -137,6 +137,9 @@ export class ExplorerIcons {
     badge.innerHTML = "";
     badge.removeAttribute("style");
     await renderIconInto(badge, ref, this.store, { color: entry.color, size: entry.size });
+    if (badge.hasClass("obsidian-icon-missing")) {
+      delete badge.dataset.ref;
+    }
     badge.addClass("obsidian-icon-explorer");
   }
 }

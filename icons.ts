@@ -125,6 +125,21 @@ export function parseSize(raw: string | undefined): string | undefined {
 }
 
 /** Zahlen Entities auflösen, nur zur Prüfung von Attribut Werten. */
+const NAMED_ENTITIES: Record<string, string> = {
+  colon: ":",
+  semi: ";",
+  lpar: "(",
+  rpar: ")",
+  tab: "\t",
+  newline: "\n",
+  nbsp: " ",
+  quot: '"',
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  sol: "/",
+};
+
 function decodeEntities(value: string): string {
   return value
     .replace(/&#x([0-9a-f]+);?/gi, (_m, hex: string) =>
@@ -132,33 +147,60 @@ function decodeEntities(value: string): string {
     )
     .replace(/&#([0-9]+);?/g, (_m, dec: string) =>
       String.fromCharCode(parseInt(dec, 10)),
-    );
+    )
+    .replace(/&([a-z]+);?/gi, (_m, name: string) => {
+      const hit = NAMED_ENTITIES[name.toLowerCase()];
+      return hit === undefined ? _m : hit;
+    });
+}
+
+/** CSS Säuberung für style Blöcke und Attribute, Verläufe mit url(#) bleiben. */
+function cleanCss(css: string): string {
+  return css
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/@import[^;]+;?/gi, "")
+    .replace(/url\s*\(\s*(?!#)([^)]*)\)/gi, "")
+    .replace(/expression\s*\(/gi, "(")
+    .replace(/behaviou?r\s*:/gi, ":");
 }
 
 /** Minimaler Schutz für eigene Vault Dateien, kein Ersatz für volle Sanitizer. */
 export function sanitizeSvg(svg: string): string {
   return svg
     .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
+    .replace(/<script\b[^>]*>/gi, "")
+    .replace(/<\/script\s*>/gi, "")
     .replace(/<foreignobject\b[^>]*\/>/gi, "")
     .replace(/<foreignobject\b[\s\S]*?<\/foreignobject\s*>/gi, "")
     .replace(/<foreignobject\b[\s\S]*$/gi, "")
     .replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "")
     .replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
     .replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css: string) => {
-      const clean = css
-        .replace(/@import[^;]+;?/gi, "")
-        .replace(/url\(\s*(?!#)([^)]*)\)/gi, "");
-      return `<style>${clean}</style>`;
+      return `<style>${cleanCss(css)}</style>`;
     })
     .replace(/[\s/'"]on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(
-      /[\s/'"](xlink:href|href|src|to)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      /[\s/'"]style\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      (_m, raw: string) => {
+        const quote = raw[0] === '"' || raw[0] === "'" ? raw[0] : "";
+        const body = quote ? raw.slice(1, -1) : raw;
+        return ` style=${quote}${cleanCss(body)}${quote}`;
+      },
+    )
+    .replace(
+      /[\s/'"](xlink:href|href|src|srcset|to|from|by|values)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
       (m, attr: string, raw: string) => {
         const value = decodeEntities(raw.replace(/^['"]|['"]$/g, ""))
           .trim()
           .toLowerCase();
         if (value.startsWith("#")) return m;
-        if (attr.toLowerCase() === "to" && !value.includes(":")) return m;
+        const name = attr.toLowerCase();
+        if (
+          (name === "to" || name === "from" || name === "by" || name === "values") &&
+          !value.includes(":")
+        ) {
+          return m;
+        }
         return "";
       },
     )
@@ -348,6 +390,8 @@ export async function renderIconInto(
   opts?: { size?: string; color?: string },
 ): Promise<void> {
   el.addClass("obsidian-icon-inline");
+  el.removeClass("obsidian-icon-missing");
+  el.removeAttribute("title");
   const label =
     ref.kind === "svg" ? ref.name : ref.kind === "lucide" ? ref.id : ref.char;
   const color = themeVar(opts?.color);

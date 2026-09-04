@@ -54,6 +54,12 @@ In den Einstellungen lässt sich CDN Nachladen einschalten. Fehlt ein devicon od
 
 Eigener Schalter für Self-Hosted Icons von selfh.st als `selfhosted:name`, etwa 2.400 Homelab Marken mit Tags. Im dunklen Theme automatisch die helle Variante wenn vorhanden und Helle Variante automatisch an ist, eine von Hand gewählte Dunkel Variante gewinnt immer.
 
+## Sync und Geräte
+
+Der CDN Cache liegt in `data.json` und wird von Obsidian Sync mit synchronisiert, obwohl er pro Gerät gedacht ist. Bei geteilten Vaults also Größe und Traffic im Blick behalten, notfalls Icon Cache in den Einstellungen leeren.
+
+Die Mapping Datei ist für Sync gemacht, aber ohne Zusammenführung: Setzen zwei Geräte gleichzeitig verschiedene Icons, gewinnt jeweils der letzte Schreibende. Konflikt Kopien liest das Plugin nicht. Wird die Mapping Datei bei laufendem Plugin gelöscht, bleibt der Speicher erhalten und schreibt sich beim nächsten Setzen neu.
+
 ## Picker Extras
 
 Der Picker zeigt oben Favoriten und Zuletzt verwendet, jeweils nur wenn vorhanden. Der Stern in jeder Zeile heftet ein Icon an oder löst es wieder. Beide Listen liegen pro Gerät in den Plugin Daten.

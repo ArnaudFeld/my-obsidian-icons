@@ -33,7 +33,7 @@ import { MappingStore, normalizeExt } from "./mapping";
 import { ExplorerIcons } from "./explorer";
 import { IconPickerModal, PickerResult } from "./picker";
 import { IconGalleryModal, IconCheckModal } from "./gallery";
-import { IconSuggest, FrontmatterSuggest, collectCatalogRefs } from "./suggest";
+import { IconSuggest, FrontmatterSuggest, collectCatalogRefs, clearCatalogCache } from "./suggest";
 import { TabsTitles } from "./tabs-titles";
 import { exportIcons, importIcons } from "./exchange";
 
@@ -480,6 +480,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
       return;
     }
     this.icons.invalidatePath(path);
+    if (path.toLowerCase().endsWith(".svg")) clearCatalogCache();
   }
 
   private onRename(file: TAbstractFile, oldPath: string): void {
@@ -528,7 +529,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
   }
 
   /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog.
-   * Nur Namespaces mit vollständigem Stand werden beurteilt, der Rest bleibt.
+   * Nur Quellen mit vollständigem Stand werden beurteilt, der Rest bleibt.
    */
   private async pruneMeta(cdnRefs: string[]): Promise<void> {
     const local = new Set(await this.icons.listSvgNames());
@@ -539,21 +540,30 @@ export default class InlineSvgIconsPlugin extends Plugin {
     } catch {
       lucide = null;
     }
-    const cdn =
-      this.settings.cdnEnabled || this.settings.selfhostEnabled
-        ? new Set(cdnRefs)
-        : null;
+    const cdn = this.settings.cdnEnabled
+      ? new Set(
+          cdnRefs.filter(
+            (ref) => ref.startsWith("devicon/") || ref.startsWith("simple/"),
+          ),
+        )
+      : null;
+    const selfhosted = this.settings.selfhostEnabled
+      ? new Set(cdnRefs.filter((ref) => ref.startsWith("selfhosted/")))
+      : null;
+    const sourceSet = (ref: string): Set<string> | null | undefined => {
+      if (ref.startsWith("lucide:")) return lucide;
+      if (ref.startsWith("devicon/") || ref.startsWith("simple/")) return cdn;
+      if (ref.startsWith("selfhosted/")) return selfhosted;
+      return undefined;
+    };
     const known = (ref: string): boolean => {
       if (local.has(ref)) return true;
-      if (ref.startsWith("lucide:")) return lucide !== null && lucide.has(ref);
-      if (ref.includes("/")) return cdn !== null && cdn.has(ref);
-      return false;
+      const set = sourceSet(ref);
+      return set !== null && set !== undefined && set.has(ref);
     };
     const judgeable = (ref: string): boolean => {
       if (local.has(ref)) return true;
-      if (ref.startsWith("lucide:")) return lucide !== null;
-      if (ref.includes("/")) return cdn !== null;
-      return true;
+      return sourceSet(ref) !== null;
     };
     let changed = false;
     const keep = (list: string[]): string[] =>
@@ -575,6 +585,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
       const parts = [result.icon];
       if (result.size) parts.push(result.size);
       if (result.color) parts.push(result.color);
+      if (result.iconDark) parts.push(`dark:${result.iconDark}`);
       const tag = `{{icon:${parts.join("|")}}}`;
       editor.setCursor(cursor);
       const before = line.slice(0, cursor.ch);
@@ -745,6 +756,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
 
   async reloadCatalogs(): Promise<void> {
     clearCatalogCaches();
+    clearCatalogCache();
     try {
       await loadCatalogs();
     } catch {
@@ -939,7 +951,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
       this.settings = { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) };
       this.cdnData = raw.cdnCache ?? {};
       this.recentIcons = this.asStringList(raw.recentIcons).slice(0, RECENT_LIMIT);
-      this.favoriteIcons = [...new Set(this.asStringList(raw.favoriteIcons))];
+      this.favoriteIcons = [...new Set(this.asStringList(raw.favoriteIcons))].slice(-FAVORITE_LIMIT);
     } else {
       this.settings = {
         ...DEFAULT_SETTINGS,

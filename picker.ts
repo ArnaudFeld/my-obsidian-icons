@@ -267,13 +267,18 @@ export class IconPickerModal extends Modal {
     this.saveBtn.disabled = !this.selected;
     this.updateSaveFileBtn();
     this.darkBtn = footer.createEl("button", {
-      text: "Dunkel: wählen",
+      text: "Dark-Icon wählen",
+      attr: {
+        title:
+          "Icon für den Dark Mode festlegen: danach ein Icon aus der Liste anklicken, es wird nur im dunklen Theme gezeigt.",
+      },
     }) as HTMLButtonElement;
     this.darkBtn.onclick = () => {
       this.pickDark = !this.pickDark;
       this.darkBtn.setText(
-        this.pickDark ? "Dunkel: abbrechen" : "Dunkel: wählen",
+        this.pickDark ? "Auswahl abbrechen" : "Dark-Icon wählen",
       );
+      this.renderDarkLine();
     };
     this.saveBtn.onclick = () => {
       if (!this.selected) return;
@@ -446,9 +451,14 @@ export class IconPickerModal extends Modal {
 
   private renderDarkLine(): void {
     if (!this.darkLine) return;
+    if (this.pickDark) {
+      this.darkLine.textContent =
+        "Jetzt ein Icon aus der Liste anklicken → wird Dark-Mode-Icon";
+      return;
+    }
     this.darkLine.textContent = this.darkIcon
-      ? `Dunkel: ${this.darkIcon}`
-      : "Dunkel: wie hell";
+      ? `Dark Mode: ${this.darkIcon}`
+      : "Dark Mode: wie helles Icon";
   }
 
   private async selectRow(item: PickerItem, row: HTMLElement): Promise<void> {
@@ -472,7 +482,7 @@ export class IconPickerModal extends Modal {
     if (this.pickDark) {
       this.darkIcon = item.ref;
       this.pickDark = false;
-      this.darkBtn.setText("Dunkel: wählen");
+      this.darkBtn.setText("Dark-Icon wählen");
       this.renderDarkLine();
       row.removeClass("is-selected");
       return;

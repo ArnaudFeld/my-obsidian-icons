@@ -54,6 +54,7 @@ function hasSelfhostLight(ref: string): boolean {
  */
 export class TabsTitles {
   private timer = 0;
+  private refreshing = false;
 
   constructor(
     private app: App,
@@ -74,9 +75,12 @@ export class TabsTitles {
       ).tabHeaderInnerIconEl;
       if (tabEl) this.restoreTab(leaf, tabEl);
       const titleEl = leaf.view.containerEl.querySelector(
-        ".inline-title .obsidian-icon-title",
-      );
-      titleEl?.remove();
+        ".inline-title",
+      ) as HTMLElement | null;
+      if (titleEl) {
+        titleEl.querySelector(":scope > .obsidian-icon-title")?.remove();
+        delete titleEl.dataset.obsidianIconTitle;
+      }
     }
   }
 
@@ -86,15 +90,24 @@ export class TabsTitles {
   }
 
   async refresh(): Promise<void> {
-    const opts = this.getOpts();
-    const dark = isDarkTheme();
-    const leaves = this.app.workspace.getLeavesOfType("markdown");
-    for (let i = 0; i < leaves.length; i += REFRESH_CONCURRENCY) {
-      await Promise.all(
-        leaves
-          .slice(i, i + REFRESH_CONCURRENCY)
-          .map((leaf) => this.refreshLeaf(leaf, opts, dark)),
-      );
+    if (this.refreshing) {
+      this.refreshSoon();
+      return;
+    }
+    this.refreshing = true;
+    try {
+      const opts = this.getOpts();
+      const dark = isDarkTheme();
+      const leaves = this.app.workspace.getLeavesOfType("markdown");
+      for (let i = 0; i < leaves.length; i += REFRESH_CONCURRENCY) {
+        await Promise.all(
+          leaves
+            .slice(i, i + REFRESH_CONCURRENCY)
+            .map((leaf) => this.refreshLeaf(leaf, opts, dark)),
+        );
+      }
+    } finally {
+      this.refreshing = false;
     }
   }
 
@@ -118,12 +131,12 @@ export class TabsTitles {
       if (titleEl) {
         const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
         const key = entry
-          ? `${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`
+          ? `${dark ? "dark" : "light"}|${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`
           : "";
         const badge = titleEl.querySelector(":scope > .obsidian-icon-title");
         if (titleEl.dataset.obsidianIconTitle !== key || (entry && !badge)) {
-          badge?.remove();
           titleEl.dataset.obsidianIconTitle = key;
+          badge?.remove();
           if (entry) await this.paintTitle(titleEl, entry);
         }
       }
@@ -161,6 +174,7 @@ export class TabsTitles {
   ): Promise<void> {
     const ref = parseIconRef(entry.icon);
     if (!ref) {
+      this.restoreTab(leaf, el);
       return;
     }
     if (ref.kind === "lucide" && !this.store.knowsLucide(ref.id)) {

@@ -144,14 +144,16 @@ export function importIcons(
           writtenBytes += svg.length;
         }
         let entries = 0;
+        const pathItems: [string, MappingEntry][] = [];
         for (const [path, value] of Object.entries(pkg.mapping)) {
           if (path === EXT_KEY) continue;
           if (path.includes("..") || path.startsWith("/")) continue;
           const entry = normalizeEntry(value as string | MappingEntry);
           if (!entry) continue;
-          await mapping.set(path, entry);
+          pathItems.push([path, entry]);
           entries++;
         }
+        const extItems: [string, MappingEntry][] = [];
         const extSection: unknown = pkg.mapping[EXT_KEY];
         if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
           for (const [raw, value] of Object.entries(
@@ -160,10 +162,11 @@ export function importIcons(
             const ext = normalizeExt(raw);
             const entry = normalizeEntry(value);
             if (!ext || !entry) continue;
-            await mapping.setExt(ext, entry);
+            extItems.push([ext, entry]);
             entries++;
           }
         }
+        await mapping.importAll(pathItems, extItems);
         store.clear();
         onDone();
         new Notice(

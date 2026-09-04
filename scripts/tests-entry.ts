@@ -213,6 +213,32 @@ check("Sanitizer Trenner Schrägstrich und Anführungszeichen", () => {
   assert.ok(out.includes("<text>k</text>"));
 });
 
+check("Sanitizer SMIL-Werte und benannte Entities", () => {
+  const out = sanitizeSvg(
+    '<svg><a href="#ok"><text>x</text><animate attributeName="href" values="&#106;avascript:alert(1)" dur="1s"/></a>' +
+      '<a href="#x"><text>k</text><animate attributeName="href" from="#" to="javascript&colon;alert(1)" dur="1s"/></a></svg>',
+  );
+  assert.ok(!out.includes("values="));
+  assert.ok(!out.includes("javascript:"));
+  assert.ok(out.includes("<text>x</text>"));
+});
+
+check("Sanitizer Stil-Attribut und srcset", () => {
+  const out = sanitizeSvg(
+    '<svg><circle style="fill:red;background:url(http://evil/?c=1)"/><image srcset="http://evil/x.svg 1x"/></svg>',
+  );
+  assert.ok(!out.includes("http://evil"));
+  assert.ok(out.includes("fill:red"));
+  assert.ok(!out.includes("srcset"));
+});
+
+check("Sanitizer Skript mit Quelle ohne Close", () => {
+  const out = sanitizeSvg(
+    '<svg><script href="data:text/javascript,alert(1)"/><circle fill="red"/></svg>',
+  );
+  assert.ok(!out.includes("<script"));
+  assert.ok(out.includes('fill="red"'));
+});
 check("Sanitizer offenes Fremdobjekt und to Schema", () => {
   const out = sanitizeSvg(
     '<svg><foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><img src=x onerror=alert(1)>',
@@ -388,6 +414,32 @@ await checkAsync("Suggest Katalog kommt aus dem Cache", async () => {
   assert.deepEqual(first.hay.get("server"), ["server"]);
   const second = await cachedCatalogRefs(store, { cdn: false, selfhost: false });
   assert.equal(second, first);
+});
+
+await checkAsync("Import-Batch schreibt alles auf einmal", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  let writes = 0;
+  const origCreate = app.vault.create.bind(app.vault);
+  const origModify = app.vault.modify.bind(app.vault);
+  app.vault.create = async (path: string, content: string) => {
+    writes++;
+    return origCreate(path, content);
+  };
+  app.vault.modify = async (file: never, content: string) => {
+    writes++;
+    return origModify(file, content);
+  };
+  await store.importAll(
+    [
+      ["a.md", { icon: "eins" }],
+      ["b.md", { icon: "zwei" }],
+    ],
+    [["md", { icon: "server" }]],
+  );
+  assert.equal(writes, 1);
+  assert.deepEqual(store.get("a.md"), { icon: "eins" });
+  assert.deepEqual(store.getExt("md"), { icon: "server" });
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

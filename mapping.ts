@@ -56,6 +56,8 @@ export class MappingStore {
   private data: IconMapping = {};
   /** Aufeinanderfolgende Saves, damit sich parallele Writes nicht überholen. */
   private saveQueue: Promise<void> = Promise.resolve();
+  /** Stand Zähler, Load liest neu wenn dazwischen mutiert wurde. */
+  private rev = 0;
 
   constructor(
     private app: App,
@@ -71,15 +73,19 @@ export class MappingStore {
   }
 
   async load(): Promise<void> {
-    const run = this.saveQueue.then(
-      () => this.readFile(),
-      () => this.readFile(),
-    );
-    this.saveQueue = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    await run;
+    for (let i = 0; i < 3; i++) {
+      const seen = this.rev;
+      const run = this.saveQueue.then(
+        () => this.readFile(),
+        () => this.readFile(),
+      );
+      this.saveQueue = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      await run;
+      if (this.rev === seen) return;
+    }
   }
 
   private async readFile(): Promise<void> {
@@ -166,6 +172,7 @@ export class MappingStore {
     const section = this.extSection();
     section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
     this.data[EXT_KEY] = section as unknown as MappingEntry;
+    this.rev++;
     await this.save();
   }
 
@@ -183,6 +190,7 @@ export class MappingStore {
     if (changed) {
       if (Object.keys(section).length === 0) delete this.data[EXT_KEY];
       else this.data[EXT_KEY] = section as unknown as MappingEntry;
+      this.rev++;
       await this.save();
     }
   }
@@ -221,6 +229,7 @@ export class MappingStore {
   async set(path: string, entry: MappingEntry): Promise<void> {
     if (!isSafeKey(path)) return;
     this.data[path] = MappingStore.asStored(entry);
+    this.rev++;
     await this.save();
   }
 
@@ -231,6 +240,29 @@ export class MappingStore {
     for (const [path, entry] of clean) {
       this.data[path] = MappingStore.asStored(entry);
     }
+    this.rev++;
+    await this.save();
+  }
+
+  /** Import Paket mit nur einem Schreibvorgang. */
+  async importAll(
+    items: [string, MappingEntry][],
+    ext: [string, MappingEntry][],
+  ): Promise<void> {
+    for (const [path, entry] of items) {
+      if (!isSafeKey(path)) continue;
+      this.data[path] = MappingStore.asStored(entry);
+    }
+    if (ext.length > 0) {
+      const section = this.extSection();
+      for (const [raw, entry] of ext) {
+        const key = normalizeExt(raw) ?? raw;
+        if (!isSafeKey(key)) continue;
+        section[key] = MappingStore.asStored(entry);
+      }
+      this.data[EXT_KEY] = section as unknown as MappingEntry;
+    }
+    this.rev++;
     await this.save();
   }
 
@@ -238,6 +270,7 @@ export class MappingStore {
     if (!isSafeKey(path)) return;
     if (path in this.data) {
       delete this.data[path];
+      this.rev++;
       await this.save();
     }
   }
@@ -252,7 +285,10 @@ export class MappingStore {
         changed = true;
       }
     }
-    if (changed) await this.save();
+    if (changed) {
+      this.rev++;
+      await this.save();
+    }
   }
 
   /** Ordner Umbenennung zieht Kinder mit um. */
@@ -276,7 +312,10 @@ export class MappingStore {
         }
       }
     }
-    if (changed) void this.save();
+    if (changed) {
+      this.rev++;
+      void this.save();
+    }
     return changed;
   }
 
@@ -296,7 +335,10 @@ export class MappingStore {
         }
       }
     }
-    if (changed) void this.save();
+    if (changed) {
+      this.rev++;
+      void this.save();
+    }
     return changed;
   }
 

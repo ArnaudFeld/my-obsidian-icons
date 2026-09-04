@@ -64,6 +64,11 @@ export async function collectCatalogRefs(
   return { refs, deviconTags, selfhostTags };
 }
 
+/** Suggest Cache leeren, nach Neu laden und bei SVG Anlage oder Löschen. */
+export function clearCatalogCache(): void {
+  catalogCache = null;
+}
+
 /** Ältere Form ohne Self-Hosted. */
 export async function collectIconRefs(
   store: IconStore,

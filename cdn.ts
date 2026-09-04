@@ -135,6 +135,9 @@ export function loadCatalogs(): Promise<LiveCatalogs> {
         },
       };
     })();
+    catalogPromise.catch(() => {
+      catalogPromise = null;
+    });
   }
   return catalogPromise;
 }
@@ -260,17 +263,25 @@ async function loadSelfhostCatalog(): Promise<{
 }
 
 /** Referenzen mit heller Variante, eingebaut plus letzter Live Stand. */
+let lightCache: {
+  src: Map<string, SelfhostEntry> | null;
+  set: Set<string>;
+} | null = null;
+
 export function selfhostLightRefs(): Set<string> {
-  const out = new Set<string>();
-  for (const [ref, entry] of Object.entries(SELFHOST_CATALOG)) {
-    if (entry.light) out.add(ref);
-  }
-  if (liveSelfhost) {
-    for (const [ref, entry] of liveSelfhost) {
+  if (!lightCache || lightCache.src !== liveSelfhost) {
+    const out = new Set<string>();
+    for (const [ref, entry] of Object.entries(SELFHOST_CATALOG)) {
       if (entry.light) out.add(ref);
     }
+    if (liveSelfhost) {
+      for (const [ref, entry] of liveSelfhost) {
+        if (entry.light) out.add(ref);
+      }
+    }
+    lightCache = { src: liveSelfhost, set: out };
   }
-  return out;
+  return lightCache.set;
 }
 
 export type CdnKind = "devicon" | "simple" | "selfhosted";

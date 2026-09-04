@@ -134,6 +134,20 @@ function parseSize(raw) {
     return raw;
   return void 0;
 }
+var NAMED_ENTITIES = {
+  colon: ":",
+  semi: ";",
+  lpar: "(",
+  rpar: ")",
+  tab: "	",
+  newline: "\n",
+  nbsp: "\xA0",
+  quot: '"',
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  sol: "/"
+};
 function decodeEntities(value) {
   return value.replace(
     /&#x([0-9a-f]+);?/gi,
@@ -141,20 +155,34 @@ function decodeEntities(value) {
   ).replace(
     /&#([0-9]+);?/g,
     (_m, dec) => String.fromCharCode(parseInt(dec, 10))
-  );
+  ).replace(/&([a-z]+);?/gi, (_m, name) => {
+    const hit = NAMED_ENTITIES[name.toLowerCase()];
+    return hit === void 0 ? _m : hit;
+  });
+}
+function cleanCss(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@import[^;]+;?/gi, "").replace(/url\s*\(\s*(?!#)([^)]*)\)/gi, "").replace(/expression\s*\(/gi, "(").replace(/behaviou?r\s*:/gi, ":");
 }
 function sanitizeSvg(svg) {
-  return svg.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<foreignobject\b[^>]*\/>/gi, "").replace(/<foreignobject\b[\s\S]*?<\/foreignobject\s*>/gi, "").replace(/<foreignobject\b[\s\S]*$/gi, "").replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "").replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "").replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css) => {
-    const clean = css.replace(/@import[^;]+;?/gi, "").replace(/url\(\s*(?!#)([^)]*)\)/gi, "");
-    return `<style>${clean}</style>`;
+  return svg.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<script\b[^>]*>/gi, "").replace(/<\/script\s*>/gi, "").replace(/<foreignobject\b[^>]*\/>/gi, "").replace(/<foreignobject\b[\s\S]*?<\/foreignobject\s*>/gi, "").replace(/<foreignobject\b[\s\S]*$/gi, "").replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "").replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "").replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css) => {
+    return `<style>${cleanCss(css)}</style>`;
   }).replace(/[\s/'"]on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(
-    /[\s/'"](xlink:href|href|src|to)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+    /[\s/'"]style\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+    (_m, raw) => {
+      const quote = raw[0] === '"' || raw[0] === "'" ? raw[0] : "";
+      const body = quote ? raw.slice(1, -1) : raw;
+      return ` style=${quote}${cleanCss(body)}${quote}`;
+    }
+  ).replace(
+    /[\s/'"](xlink:href|href|src|srcset|to|from|by|values)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
     (m, attr, raw) => {
       const value = decodeEntities(raw.replace(/^['"]|['"]$/g, "")).trim().toLowerCase();
       if (value.startsWith("#"))
         return m;
-      if (attr.toLowerCase() === "to" && !value.includes(":"))
+      const name = attr.toLowerCase();
+      if ((name === "to" || name === "from" || name === "by" || name === "values") && !value.includes(":")) {
         return m;
+      }
       return "";
     }
   ).replace(/javascript\s*:/gi, "");
@@ -311,6 +339,8 @@ function renderMissing(el, label) {
 }
 async function renderIconInto(el, ref, store, opts) {
   el.addClass("obsidian-icon-inline");
+  el.removeClass("obsidian-icon-missing");
+  el.removeAttribute("title");
   const label = ref.kind === "svg" ? ref.name : ref.kind === "lucide" ? ref.id : ref.char;
   const color = themeVar(opts == null ? void 0 : opts.color);
   if (opts == null ? void 0 : opts.size) {
@@ -401,6 +431,8 @@ var MappingStore = class _MappingStore {
     this.data = {};
     /** Aufeinanderfolgende Saves, damit sich parallele Writes nicht überholen. */
     this.saveQueue = Promise.resolve();
+    /** Stand Zähler, Load liest neu wenn dazwischen mutiert wurde. */
+    this.rev = 0;
   }
   mappingPath() {
     return normalizeFolder(this.getFile());
@@ -409,15 +441,20 @@ var MappingStore = class _MappingStore {
     return path === this.mappingPath();
   }
   async load() {
-    const run = this.saveQueue.then(
-      () => this.readFile(),
-      () => this.readFile()
-    );
-    this.saveQueue = run.then(
-      () => void 0,
-      () => void 0
-    );
-    await run;
+    for (let i = 0; i < 3; i++) {
+      const seen = this.rev;
+      const run = this.saveQueue.then(
+        () => this.readFile(),
+        () => this.readFile()
+      );
+      this.saveQueue = run.then(
+        () => void 0,
+        () => void 0
+      );
+      await run;
+      if (this.rev === seen)
+        return;
+    }
   }
   async readFile() {
     try {
@@ -509,6 +546,7 @@ var MappingStore = class _MappingStore {
     const section = this.extSection();
     section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
     this.data[EXT_KEY] = section;
+    this.rev++;
     await this.save();
   }
   async removeExt(ext) {
@@ -528,6 +566,7 @@ var MappingStore = class _MappingStore {
         delete this.data[EXT_KEY];
       else
         this.data[EXT_KEY] = section;
+      this.rev++;
       await this.save();
     }
   }
@@ -566,6 +605,7 @@ var MappingStore = class _MappingStore {
     if (!isSafeKey(path))
       return;
     this.data[path] = _MappingStore.asStored(entry);
+    this.rev++;
     await this.save();
   }
   /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
@@ -576,6 +616,28 @@ var MappingStore = class _MappingStore {
     for (const [path, entry] of clean) {
       this.data[path] = _MappingStore.asStored(entry);
     }
+    this.rev++;
+    await this.save();
+  }
+  /** Import Paket mit nur einem Schreibvorgang. */
+  async importAll(items, ext) {
+    var _a;
+    for (const [path, entry] of items) {
+      if (!isSafeKey(path))
+        continue;
+      this.data[path] = _MappingStore.asStored(entry);
+    }
+    if (ext.length > 0) {
+      const section = this.extSection();
+      for (const [raw, entry] of ext) {
+        const key = (_a = normalizeExt(raw)) != null ? _a : raw;
+        if (!isSafeKey(key))
+          continue;
+        section[key] = _MappingStore.asStored(entry);
+      }
+      this.data[EXT_KEY] = section;
+    }
+    this.rev++;
     await this.save();
   }
   async remove(path) {
@@ -583,6 +645,7 @@ var MappingStore = class _MappingStore {
       return;
     if (path in this.data) {
       delete this.data[path];
+      this.rev++;
       await this.save();
     }
   }
@@ -597,8 +660,10 @@ var MappingStore = class _MappingStore {
         changed = true;
       }
     }
-    if (changed)
+    if (changed) {
+      this.rev++;
       await this.save();
+    }
   }
   /** Ordner Umbenennung zieht Kinder mit um. */
   migrateRename(oldPath, newPath, isFolder) {
@@ -621,8 +686,10 @@ var MappingStore = class _MappingStore {
         }
       }
     }
-    if (changed)
+    if (changed) {
+      this.rev++;
       void this.save();
+    }
     return changed;
   }
   removePath(path, isFolder) {
@@ -642,8 +709,10 @@ var MappingStore = class _MappingStore {
         }
       }
     }
-    if (changed)
+    if (changed) {
+      this.rev++;
       void this.save();
+    }
     return changed;
   }
   save() {
@@ -4419,6 +4488,9 @@ function loadCatalogs() {
         }
       };
     })();
+    catalogPromise.catch(() => {
+      catalogPromise = null;
+    });
   }
   return catalogPromise;
 }
@@ -4515,19 +4587,23 @@ async function loadSelfhostCatalog() {
   }
   return { entries: fallback, live: false };
 }
+var lightCache = null;
 function selfhostLightRefs() {
-  const out = /* @__PURE__ */ new Set();
-  for (const [ref, entry] of Object.entries(SELFHOST_CATALOG)) {
-    if (entry.light)
-      out.add(ref);
-  }
-  if (liveSelfhost) {
-    for (const [ref, entry] of liveSelfhost) {
+  if (!lightCache || lightCache.src !== liveSelfhost) {
+    const out = /* @__PURE__ */ new Set();
+    for (const [ref, entry] of Object.entries(SELFHOST_CATALOG)) {
       if (entry.light)
         out.add(ref);
     }
+    if (liveSelfhost) {
+      for (const [ref, entry] of liveSelfhost) {
+        if (entry.light)
+          out.add(ref);
+      }
+    }
+    lightCache = { src: liveSelfhost, set: out };
   }
-  return out;
+  return lightCache.set;
 }
 function splitCdnRef(name) {
   if (name.startsWith("devicon/")) {
@@ -4665,20 +4741,25 @@ var TabsTitles = class {
     this.mapping = mapping;
     this.getOpts = getOpts;
     this.timer = 0;
+    this.refreshing = false;
   }
   start() {
     this.refreshSoon();
   }
   stop() {
+    var _a;
     window.clearTimeout(this.timer);
     for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
       const tabEl = leaf.tabHeaderInnerIconEl;
       if (tabEl)
         this.restoreTab(leaf, tabEl);
       const titleEl = leaf.view.containerEl.querySelector(
-        ".inline-title .obsidian-icon-title"
+        ".inline-title"
       );
-      titleEl == null ? void 0 : titleEl.remove();
+      if (titleEl) {
+        (_a = titleEl.querySelector(":scope > .obsidian-icon-title")) == null ? void 0 : _a.remove();
+        delete titleEl.dataset.obsidianIconTitle;
+      }
     }
   }
   refreshSoon() {
@@ -4686,13 +4767,22 @@ var TabsTitles = class {
     this.timer = window.setTimeout(() => void this.refresh(), 80);
   }
   async refresh() {
-    const opts = this.getOpts();
-    const dark = isDarkTheme();
-    const leaves = this.app.workspace.getLeavesOfType("markdown");
-    for (let i = 0; i < leaves.length; i += REFRESH_CONCURRENCY) {
-      await Promise.all(
-        leaves.slice(i, i + REFRESH_CONCURRENCY).map((leaf) => this.refreshLeaf(leaf, opts, dark))
-      );
+    if (this.refreshing) {
+      this.refreshSoon();
+      return;
+    }
+    this.refreshing = true;
+    try {
+      const opts = this.getOpts();
+      const dark = isDarkTheme();
+      const leaves = this.app.workspace.getLeavesOfType("markdown");
+      for (let i = 0; i < leaves.length; i += REFRESH_CONCURRENCY) {
+        await Promise.all(
+          leaves.slice(i, i + REFRESH_CONCURRENCY).map((leaf) => this.refreshLeaf(leaf, opts, dark))
+        );
+      }
+    } finally {
+      this.refreshing = false;
     }
   }
   async refreshLeaf(leaf, opts, dark) {
@@ -4711,11 +4801,11 @@ var TabsTitles = class {
     );
     if (titleEl) {
       const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
-      const key = entry ? `${entry.icon}|${(_a = entry.color) != null ? _a : ""}|${(_b = entry.size) != null ? _b : ""}` : "";
+      const key = entry ? `${dark ? "dark" : "light"}|${entry.icon}|${(_a = entry.color) != null ? _a : ""}|${(_b = entry.size) != null ? _b : ""}` : "";
       const badge = titleEl.querySelector(":scope > .obsidian-icon-title");
       if (titleEl.dataset.obsidianIconTitle !== key || entry && !badge) {
-        badge == null ? void 0 : badge.remove();
         titleEl.dataset.obsidianIconTitle = key;
+        badge == null ? void 0 : badge.remove();
         if (entry)
           await this.paintTitle(titleEl, entry);
       }
@@ -4748,6 +4838,7 @@ var TabsTitles = class {
   async paintTab(leaf, el, entry) {
     const ref = parseIconRef(entry.icon);
     if (!ref) {
+      this.restoreTab(leaf, el);
       return;
     }
     if (ref.kind === "lucide" && !this.store.knowsLucide(ref.id)) {
@@ -4904,6 +4995,9 @@ var ExplorerIcons = class {
     badge.innerHTML = "";
     badge.removeAttribute("style");
     await renderIconInto(badge, ref, this.store, { color: entry.color, size: entry.size });
+    if (badge.hasClass("obsidian-icon-missing")) {
+      delete badge.dataset.ref;
+    }
     badge.addClass("obsidian-icon-explorer");
   }
 };
@@ -5109,13 +5203,17 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     this.saveBtn.disabled = !this.selected;
     this.updateSaveFileBtn();
     this.darkBtn = footer.createEl("button", {
-      text: "Dunkel: w\xE4hlen"
+      text: "Dark-Icon w\xE4hlen",
+      attr: {
+        title: "Icon f\xFCr den Dark Mode festlegen: danach ein Icon aus der Liste anklicken, es wird nur im dunklen Theme gezeigt."
+      }
     });
     this.darkBtn.onclick = () => {
       this.pickDark = !this.pickDark;
       this.darkBtn.setText(
-        this.pickDark ? "Dunkel: abbrechen" : "Dunkel: w\xE4hlen"
+        this.pickDark ? "Auswahl abbrechen" : "Dark-Icon w\xE4hlen"
       );
+      this.renderDarkLine();
     };
     this.saveBtn.onclick = () => {
       var _a2;
@@ -5276,7 +5374,11 @@ var IconPickerModal = class extends import_obsidian6.Modal {
   renderDarkLine() {
     if (!this.darkLine)
       return;
-    this.darkLine.textContent = this.darkIcon ? `Dunkel: ${this.darkIcon}` : "Dunkel: wie hell";
+    if (this.pickDark) {
+      this.darkLine.textContent = "Jetzt ein Icon aus der Liste anklicken \u2192 wird Dark-Mode-Icon";
+      return;
+    }
+    this.darkLine.textContent = this.darkIcon ? `Dark Mode: ${this.darkIcon}` : "Dark Mode: wie helles Icon";
   }
   async selectRow(item, row) {
     this.listEl.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
@@ -5301,7 +5403,7 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     if (this.pickDark) {
       this.darkIcon = item.ref;
       this.pickDark = false;
-      this.darkBtn.setText("Dunkel: w\xE4hlen");
+      this.darkBtn.setText("Dark-Icon w\xE4hlen");
       this.renderDarkLine();
       row.removeClass("is-selected");
       return;
@@ -5534,6 +5636,9 @@ async function collectCatalogRefs(store, opts) {
   for (const id of store.lucideIds())
     push(`lucide:${id}`);
   return { refs, deviconTags, selfhostTags };
+}
+function clearCatalogCache() {
+  catalogCache = null;
 }
 var CATALOG_TTL_MS = 3e4;
 var catalogCache = null;
@@ -5838,6 +5943,7 @@ function importIcons(app, store, mapping, getFolder, onDone) {
           writtenBytes += svg.length;
         }
         let entries = 0;
+        const pathItems = [];
         for (const [path, value] of Object.entries(pkg.mapping)) {
           if (path === EXT_KEY)
             continue;
@@ -5846,9 +5952,10 @@ function importIcons(app, store, mapping, getFolder, onDone) {
           const entry = normalizeEntry(value);
           if (!entry)
             continue;
-          await mapping.set(path, entry);
+          pathItems.push([path, entry]);
           entries++;
         }
+        const extItems = [];
         const extSection = pkg.mapping[EXT_KEY];
         if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
           for (const [raw, value] of Object.entries(
@@ -5858,10 +5965,11 @@ function importIcons(app, store, mapping, getFolder, onDone) {
             const entry = normalizeEntry(value);
             if (!ext || !entry)
               continue;
-            await mapping.setExt(ext, entry);
+            extItems.push([ext, entry]);
             entries++;
           }
         }
+        await mapping.importAll(pathItems, extItems);
         store.clear();
         onDone();
         new import_obsidian9.Notice(
@@ -6225,6 +6333,8 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       return;
     }
     this.icons.invalidatePath(path);
+    if (path.toLowerCase().endsWith(".svg"))
+      clearCatalogCache();
   }
   onRename(file, oldPath) {
     if (this.mapping.isMappingPath(file.path))
@@ -6268,7 +6378,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     });
   }
   /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog.
-   * Nur Namespaces mit vollständigem Stand werden beurteilt, der Rest bleibt.
+   * Nur Quellen mit vollständigem Stand werden beurteilt, der Rest bleibt.
    */
   async pruneMeta(cdnRefs) {
     const local = new Set(await this.icons.listSvgNames());
@@ -6280,24 +6390,31 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     } catch (e) {
       lucide = null;
     }
-    const cdn = this.settings.cdnEnabled || this.settings.selfhostEnabled ? new Set(cdnRefs) : null;
+    const cdn = this.settings.cdnEnabled ? new Set(
+      cdnRefs.filter(
+        (ref) => ref.startsWith("devicon/") || ref.startsWith("simple/")
+      )
+    ) : null;
+    const selfhosted = this.settings.selfhostEnabled ? new Set(cdnRefs.filter((ref) => ref.startsWith("selfhosted/"))) : null;
+    const sourceSet = (ref) => {
+      if (ref.startsWith("lucide:"))
+        return lucide;
+      if (ref.startsWith("devicon/") || ref.startsWith("simple/"))
+        return cdn;
+      if (ref.startsWith("selfhosted/"))
+        return selfhosted;
+      return void 0;
+    };
     const known = (ref) => {
       if (local.has(ref))
         return true;
-      if (ref.startsWith("lucide:"))
-        return lucide !== null && lucide.has(ref);
-      if (ref.includes("/"))
-        return cdn !== null && cdn.has(ref);
-      return false;
+      const set = sourceSet(ref);
+      return set !== null && set !== void 0 && set.has(ref);
     };
     const judgeable = (ref) => {
       if (local.has(ref))
         return true;
-      if (ref.startsWith("lucide:"))
-        return lucide !== null;
-      if (ref.includes("/"))
-        return cdn !== null;
-      return true;
+      return sourceSet(ref) !== null;
     };
     let changed = false;
     const keep = (list) => list.filter((ref) => {
@@ -6322,6 +6439,8 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
         parts.push(result.size);
       if (result.color)
         parts.push(result.color);
+      if (result.iconDark)
+        parts.push(`dark:${result.iconDark}`);
       const tag = `{{icon:${parts.join("|")}}}`;
       editor.setCursor(cursor);
       const before = line.slice(0, cursor.ch);
@@ -6478,6 +6597,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
   }
   async reloadCatalogs() {
     clearCatalogCaches();
+    clearCatalogCache();
     try {
       await loadCatalogs();
     } catch (e) {
@@ -6660,7 +6780,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       this.settings = { ...DEFAULT_SETTINGS, ...(_a = raw.settings) != null ? _a : {} };
       this.cdnData = (_b = raw.cdnCache) != null ? _b : {};
       this.recentIcons = this.asStringList(raw.recentIcons).slice(0, RECENT_LIMIT);
-      this.favoriteIcons = [...new Set(this.asStringList(raw.favoriteIcons))];
+      this.favoriteIcons = [...new Set(this.asStringList(raw.favoriteIcons))].slice(-FAVORITE_LIMIT);
     } else {
       this.settings = {
         ...DEFAULT_SETTINGS,
