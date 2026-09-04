@@ -126,7 +126,7 @@ function parseSize(raw) {
   return void 0;
 }
 function sanitizeSvg(svg) {
-  return svg.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, "").replace(/javascript\s*:/gi, "");
+  return svg.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<foreignobject[\s\S]*?<\/foreignobject\s*>/gi, "").replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, "").replace(/javascript\s*:/gi, "");
 }
 var THEME_COLORS = [
   "red",

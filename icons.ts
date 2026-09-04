@@ -116,6 +116,7 @@ export function parseSize(raw: string | undefined): string | undefined {
 export function sanitizeSvg(svg: string): string {
   return svg
     .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
+    .replace(/<foreignobject[\s\S]*?<\/foreignobject\s*>/gi, "")
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, "")
     .replace(/javascript\s*:/gi, "");
 }
