@@ -98,7 +98,7 @@ export class ExplorerIcons {
       const frontmatter = readFrontmatterIcon(this.app, file);
       if (frontmatter) return frontmatter;
     }
-    return this.mapping.resolve(path);
+    return this.mapping.resolve(path, file);
   }
 
   private async renderRow(selfEl: HTMLElement, path: string): Promise<void> {

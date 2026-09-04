@@ -76,6 +76,39 @@ export async function collectIconRefs(
   return catalog.refs;
 }
 
+interface CachedCatalog {
+  at: number;
+  catalog: CatalogRefs;
+  hay: Map<string, string[]>;
+}
+
+/** Katalog pro Tastenschlag wäre Vault Scan plus 10000er Aufbau, daher Cache. */
+const CATALOG_TTL_MS = 30_000;
+let catalogCache: { key: string; entry: CachedCatalog } | null = null;
+
+export async function cachedCatalogRefs(
+  store: IconStore,
+  opts: { cdn: boolean; selfhost: boolean },
+): Promise<CachedCatalog> {
+  const key = `${opts.cdn ? 1 : 0}${opts.selfhost ? 1 : 0}`;
+  const now = Date.now();
+  if (
+    catalogCache &&
+    catalogCache.key === key &&
+    now - catalogCache.entry.at < CATALOG_TTL_MS
+  ) {
+    return catalogCache.entry;
+  }
+  const catalog = await collectCatalogRefs(store, opts);
+  const hay = new Map<string, string[]>();
+  for (const ref of catalog.refs) {
+    hay.set(ref, hayFor(ref, catalog.deviconTags, catalog.selfhostTags));
+  }
+  const entry: CachedCatalog = { at: now, catalog, hay };
+  catalogCache = { key, entry };
+  return entry;
+}
+
 function hayFor(
   ref: string,
   deviconTags: Record<string, string[]>,
@@ -126,7 +159,7 @@ export class IconSuggest extends EditorSuggest<SuggestItem> {
 
   async getSuggestions(ctx: EditorSuggestContext): Promise<SuggestItem[]> {
     const terms = ctx.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const catalog = await collectCatalogRefs(this.store, {
+    const { catalog, hay } = await cachedCatalogRefs(this.store, {
       cdn: this.opts.cdn(),
       selfhost: this.opts.selfhost(),
     });
@@ -135,10 +168,10 @@ export class IconSuggest extends EditorSuggest<SuggestItem> {
     for (const ref of catalog.refs) {
       if (out.length >= 80) break;
       if (seen.has(ref)) continue;
-      const hay = hayFor(ref, catalog.deviconTags, catalog.selfhostTags);
+      const haystack = hay.get(ref) ?? [];
       if (
         terms.length === 0 ||
-        terms.every((term) => hay.some((h) => h.includes(term)))
+        terms.every((term) => haystack.some((h) => h.includes(term)))
       ) {
         seen.add(ref);
         out.push({ ref });
@@ -245,18 +278,14 @@ export class FrontmatterSuggest extends EditorSuggest<SuggestItem> {
       .trim()
       .toLowerCase();
     const terms = q.split(/\s+/).filter(Boolean);
-    const catalog = await collectCatalogRefs(this.store, this.sources());
+    const { catalog, hay } = await cachedCatalogRefs(this.store, this.sources());
     return catalog.refs
       .filter((ref) => {
         if (ref.startsWith("lucide:") && matchDark) return true;
+        const haystack = hay.get(ref) ?? [];
         return (
           terms.length === 0 ||
-          terms.every(
-            (term) =>
-              hayFor(ref, catalog.deviconTags, catalog.selfhostTags).some((h) =>
-                h.includes(term),
-              ),
-          )
+          terms.every((term) => haystack.some((h) => h.includes(term)))
         );
       })
       .slice(0, this.limit)

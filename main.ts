@@ -58,6 +58,7 @@ interface PluginEnvelope {
 }
 
 const RECENT_LIMIT = 10;
+const FAVORITE_LIMIT = 200;
 const CONFLICT_IDS = ["iconic", "obsidian-iconize", "obsidian-icon-folder"];
 
 const DEFAULT_SETTINGS: InlineSvgIconsSettings = {
@@ -443,6 +444,8 @@ export default class InlineSvgIconsPlugin extends Plugin {
   }
 
   onunload(): void {
+    window.clearTimeout(this.metaTimer);
+    void this.saveAll();
     this.cdn?.flush();
     void this.mapping?.flush();
     this.explorer?.stop();
@@ -648,14 +651,27 @@ export default class InlineSvgIconsPlugin extends Plugin {
       seen.add(ref);
     }
     this.recentIcons = this.recentIcons.slice(0, RECENT_LIMIT);
-    void this.saveAll();
+    this.saveMetaSoon();
+  }
+
+  /** Meta Writes bündeln, das Envelope mit Cache ist groß. */
+  private metaTimer = 0;
+
+  private saveMetaSoon(): void {
+    window.clearTimeout(this.metaTimer);
+    this.metaTimer = window.setTimeout(() => {
+      void this.saveAll();
+    }, 500);
   }
 
   toggleFavorite(ref: string): boolean {
     const index = this.favoriteIcons.indexOf(ref);
     if (index >= 0) this.favoriteIcons.splice(index, 1);
     else this.favoriteIcons.push(ref);
-    void this.saveAll();
+    if (this.favoriteIcons.length > FAVORITE_LIMIT) {
+      this.favoriteIcons = this.favoriteIcons.slice(-FAVORITE_LIMIT);
+    }
+    this.saveMetaSoon();
     return index < 0;
   }
 

@@ -9,6 +9,8 @@ import {
 import { MappingStore, normalizeEntry, normalizeExt } from "../mapping";
 import { pickVariant } from "../tabs-titles";
 import { CdnCache, MISSING_TTL_MS } from "../cdn";
+import { cachedCatalogRefs } from "../suggest";
+import { IconStore } from "../icons";
 import { App } from "./obsidian-stub";
 
 let count = 0;
@@ -372,6 +374,20 @@ await checkAsync("Proto Schlüssel landen nicht im Speicher", async () => {
     ({} as Record<string, unknown>)["icon" as string],
     undefined,
   );
+});
+
+await checkAsync("Suggest Katalog kommt aus dem Cache", async () => {
+  const app = testApp();
+  app.vault.files.set("_assets/icons/server.svg", "<svg/>");
+  const store = new IconStore(
+    app as unknown as import("obsidian").App,
+    () => "_assets/icons",
+  );
+  const first = await cachedCatalogRefs(store, { cdn: false, selfhost: false });
+  assert.ok(first.catalog.refs.includes("server"));
+  assert.deepEqual(first.hay.get("server"), ["server"]);
+  const second = await cachedCatalogRefs(store, { cdn: false, selfhost: false });
+  assert.equal(second, first);
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

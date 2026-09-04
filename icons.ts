@@ -57,14 +57,22 @@ export function isBrandSvg(ref: IconRef): boolean {
 }
 
 /** Theme Variable zu konkretem rgb auflösen, für SVG Attribute nötig. */
+const resolveCache = new Map<string, string>();
+
 export function resolveColor(color: string): string {
   if (!color.startsWith("var(")) return color;
+  const key = `${isDarkTheme() ? "dark" : "light"}|${color}`;
+  const hit = resolveCache.get(key);
+  if (hit !== undefined) return hit;
   const probe = document.createElement("span");
   probe.style.color = color;
   document.body.appendChild(probe);
   const rgb = getComputedStyle(probe).color;
   probe.remove();
-  return rgb || color;
+  const out = rgb || color;
+  if (resolveCache.size > 500) resolveCache.clear();
+  resolveCache.set(key, out);
+  return out;
 }
 
 /**
@@ -209,7 +217,7 @@ function luminance(rgb: string): number | null {
 const contrastCache = new Map<string, number | null>();
 
 export function contrastOnBackground(color: string): number | null {
-  const key = color.trim().toLowerCase();
+  const key = `${isDarkTheme() ? "dark" : "light"}|${color.trim().toLowerCase()}`;
   if (contrastCache.has(key)) return contrastCache.get(key) ?? null;
   let out: number | null = null;
   try {
@@ -236,6 +244,8 @@ export function contrastOnBackground(color: string): number | null {
 
 export class IconStore {
   private cache = new Map<string, string>();
+  private lucideCache: string[] | null = null;
+  private lucideSet: Set<string> | null = null;
 
   constructor(
     private app: App,
@@ -286,11 +296,19 @@ export class IconStore {
   }
 
   lucideIds(): string[] {
-    try {
-      return getIconIds();
-    } catch {
-      return [];
+    if (!this.lucideCache) {
+      try {
+        this.lucideCache = getIconIds();
+      } catch {
+        return [];
+      }
     }
+    return this.lucideCache;
+  }
+
+  knowsLucide(id: string): boolean {
+    if (!this.lucideSet) this.lucideSet = new Set(this.lucideIds());
+    return this.lucideSet.has(id);
   }
 
   handlesPath(path: string): boolean {

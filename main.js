@@ -63,15 +63,24 @@ function parseIconRef(raw) {
 function isBrandSvg(ref) {
   return ref.kind === "svg" && ref.name.startsWith("devicon/");
 }
+var resolveCache = /* @__PURE__ */ new Map();
 function resolveColor(color) {
   if (!color.startsWith("var("))
     return color;
+  const key = `${isDarkTheme() ? "dark" : "light"}|${color}`;
+  const hit = resolveCache.get(key);
+  if (hit !== void 0)
+    return hit;
   const probe = document.createElement("span");
   probe.style.color = color;
   document.body.appendChild(probe);
   const rgb = getComputedStyle(probe).color;
   probe.remove();
-  return rgb || color;
+  const out = rgb || color;
+  if (resolveCache.size > 500)
+    resolveCache.clear();
+  resolveCache.set(key, out);
+  return out;
 }
 function recolorSingle(svgEl, color) {
   var _a, _b, _c, _d;
@@ -196,7 +205,7 @@ function luminance(rgb) {
 var contrastCache = /* @__PURE__ */ new Map();
 function contrastOnBackground(color) {
   var _a, _b;
-  const key = color.trim().toLowerCase();
+  const key = `${isDarkTheme() ? "dark" : "light"}|${color.trim().toLowerCase()}`;
   if (contrastCache.has(key))
     return (_a = contrastCache.get(key)) != null ? _a : null;
   let out = null;
@@ -227,6 +236,8 @@ var IconStore = class {
     this.getFolder = getFolder;
     this.cdn = cdn;
     this.cache = /* @__PURE__ */ new Map();
+    this.lucideCache = null;
+    this.lucideSet = null;
   }
   filePath(name) {
     return `${normalizeFolder(this.getFolder())}/${name}.svg`;
@@ -261,11 +272,19 @@ var IconStore = class {
     return this.app.vault.getFiles().filter((f) => f.path.startsWith(prefix) && f.extension === "svg").map((f) => f.path.slice(prefix.length, -".svg".length)).filter((n) => /^[A-Za-z0-9_\-/]+$/.test(n)).sort((a, b) => a.localeCompare(b));
   }
   lucideIds() {
-    try {
-      return (0, import_obsidian.getIconIds)();
-    } catch (e) {
-      return [];
+    if (!this.lucideCache) {
+      try {
+        this.lucideCache = (0, import_obsidian.getIconIds)();
+      } catch (e) {
+        return [];
+      }
     }
+    return this.lucideCache;
+  }
+  knowsLucide(id) {
+    if (!this.lucideSet)
+      this.lucideSet = new Set(this.lucideIds());
+    return this.lucideSet.has(id);
   }
   handlesPath(path) {
     const folder = normalizeFolder(this.getFolder());
@@ -515,12 +534,13 @@ var MappingStore = class _MappingStore {
   /**
    * Rangfolge: direkter Pfad, dann Dateityp als Rückfall.
    * Nur für Dateien, Ordner fallen nie unter Dateityp.
+   * Bekannte Datei mitgeben spart den zweiten Vault Zugriff.
    */
-  resolve(path) {
+  resolve(path, knownFile) {
     const direct = this.get(path);
     if (direct)
       return direct;
-    const file = this.app.vault.getAbstractFileByPath(path);
+    const file = knownFile !== void 0 ? knownFile : this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof import_obsidian2.TFile))
       return null;
     const ext = file.extension.trim().toLowerCase();
@@ -4676,7 +4696,7 @@ var TabsTitles = class {
     }
   }
   async refreshLeaf(leaf, opts, dark) {
-    var _a;
+    var _a, _b;
     const path = this.leafPath(leaf);
     const tabEl = leaf.tabHeaderInnerIconEl;
     if (tabEl) {
@@ -4690,10 +4710,15 @@ var TabsTitles = class {
       ".inline-title"
     );
     if (titleEl) {
-      (_a = titleEl.querySelector(":scope > .obsidian-icon-title")) == null ? void 0 : _a.remove();
       const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
-      if (entry)
-        await this.paintTitle(titleEl, entry);
+      const key = entry ? `${entry.icon}|${(_a = entry.color) != null ? _a : ""}|${(_b = entry.size) != null ? _b : ""}` : "";
+      const badge = titleEl.querySelector(":scope > .obsidian-icon-title");
+      if (titleEl.dataset.obsidianIconTitle !== key || entry && !badge) {
+        badge == null ? void 0 : badge.remove();
+        titleEl.dataset.obsidianIconTitle = key;
+        if (entry)
+          await this.paintTitle(titleEl, entry);
+      }
     }
   }
   leafPath(leaf) {
@@ -4725,7 +4750,7 @@ var TabsTitles = class {
     if (!ref) {
       return;
     }
-    if (ref.kind === "lucide" && !this.store.lucideIds().includes(ref.id)) {
+    if (ref.kind === "lucide" && !this.store.knowsLucide(ref.id)) {
       this.restoreTab(leaf, el);
       return;
     }
@@ -4839,7 +4864,7 @@ var ExplorerIcons = class {
       if (frontmatter)
         return frontmatter;
     }
-    return this.mapping.resolve(path);
+    return this.mapping.resolve(path, file);
   }
   async renderRow(selfEl, path) {
     var _a, _b, _c;
@@ -4897,6 +4922,17 @@ var COLOR_NAMES = {
   gray: "Grau"
 };
 var PER_GROUP_LIMIT = 80;
+function hayForPicker(ref) {
+  const hay = [ref.toLowerCase()];
+  if (ref.startsWith("devicon/")) {
+    const tags = DEVICON_TAGS[ref.slice("devicon/".length)];
+    if (tags)
+      hay.push(...tags);
+  } else if (ref.startsWith("lucide:")) {
+    hay.push(ref.slice("lucide:".length).toLowerCase());
+  }
+  return hay;
+}
 var IconPickerModal = class extends import_obsidian6.Modal {
   constructor(app, store, initial, onDone, cdnRefs = [], onSaveFile, meta) {
     var _a;
@@ -4931,13 +4967,29 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     const groupFor = (ref) => ref.startsWith("devicon/") ? "Devicon" : ref.startsWith("simple/") ? "Simple" : ref.startsWith("selfhosted/") ? "Self-Hosted" : "Eigene";
     const byRef = /* @__PURE__ */ new Map();
     for (const ref of this.cdnRefs) {
-      byRef.set(ref, { ref, label: `${ref} \u2B73`, group: groupFor(ref), cdn: true });
+      byRef.set(ref, {
+        ref,
+        label: `${ref} \u2B73`,
+        group: groupFor(ref),
+        hay: hayForPicker(ref),
+        cdn: true
+      });
     }
     for (const name of names) {
-      byRef.set(name, { ref: name, label: name, group: groupFor(name) });
+      byRef.set(name, {
+        ref: name,
+        label: name,
+        group: groupFor(name),
+        hay: hayForPicker(name)
+      });
     }
     const svgItems = [...byRef.values()];
-    const lucideItems = this.store.lucideIds().map((id) => ({ ref: `lucide:${id}`, label: id, group: "Lucide" }));
+    const lucideItems = this.store.lucideIds().map((id) => ({
+      ref: `lucide:${id}`,
+      label: id,
+      group: "Lucide",
+      hay: hayForPicker(`lucide:${id}`)
+    }));
     const known = /* @__PURE__ */ new Set([
       ...svgItems.map((i) => i.ref),
       ...lucideItems.map((i) => i.ref)
@@ -4947,13 +4999,13 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     for (const ref of (_b = (_a = this.meta) == null ? void 0 : _a.favorites) != null ? _b : []) {
       if (known.has(ref) && !seenMeta.has(ref)) {
         seenMeta.add(ref);
-        metaItems.push({ ref, label: ref, group: "Favoriten" });
+        metaItems.push({ ref, label: ref, group: "Favoriten", hay: hayForPicker(ref) });
       }
     }
     for (const ref of (_d = (_c = this.meta) == null ? void 0 : _c.recent) != null ? _d : []) {
       if (known.has(ref) && !seenMeta.has(ref)) {
         seenMeta.add(ref);
-        metaItems.push({ ref, label: ref, group: "Zuletzt" });
+        metaItems.push({ ref, label: ref, group: "Zuletzt", hay: hayForPicker(ref) });
       }
     }
     this.items = [...metaItems, ...svgItems, ...lucideItems];
@@ -5146,17 +5198,11 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     await renderIconInto(box, ref, this.store, { color: this.color });
     box.addClass("obsidian-icon-picker-bigpreview");
   }
-  matches(ref) {
+  matches(item) {
     const q = this.query.trim().toLowerCase();
     if (!q)
       return true;
-    const hay = [ref.toLowerCase()];
-    if (ref.startsWith("devicon/")) {
-      const tags = DEVICON_TAGS[ref.slice("devicon/".length)];
-      if (tags)
-        hay.push(...tags);
-    }
-    return q.split(/\s+/).every((term) => hay.some((h) => h.includes(term)));
+    return q.split(/\s+/).every((term) => item.hay.some((h) => h.includes(term)));
   }
   renderList() {
     this.listEl.empty();
@@ -5172,7 +5218,7 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     let any = false;
     for (const group of groups) {
       const rows = this.items.filter(
-        (item) => item.group === group && this.matches(item.ref)
+        (item) => item.group === group && this.matches(item)
       );
       if (rows.length === 0)
         continue;
@@ -5488,6 +5534,23 @@ async function collectCatalogRefs(store, opts) {
     push(`lucide:${id}`);
   return { refs, deviconTags, selfhostTags };
 }
+var CATALOG_TTL_MS = 3e4;
+var catalogCache = null;
+async function cachedCatalogRefs(store, opts) {
+  const key = `${opts.cdn ? 1 : 0}${opts.selfhost ? 1 : 0}`;
+  const now = Date.now();
+  if (catalogCache && catalogCache.key === key && now - catalogCache.entry.at < CATALOG_TTL_MS) {
+    return catalogCache.entry;
+  }
+  const catalog = await collectCatalogRefs(store, opts);
+  const hay = /* @__PURE__ */ new Map();
+  for (const ref of catalog.refs) {
+    hay.set(ref, hayFor(ref, catalog.deviconTags, catalog.selfhostTags));
+  }
+  const entry = { at: now, catalog, hay };
+  catalogCache = { key, entry };
+  return entry;
+}
 function hayFor(ref, deviconTags, selfhostTags) {
   var _a, _b;
   const hay = [ref.toLowerCase()];
@@ -5520,8 +5583,9 @@ var IconSuggest = class extends import_obsidian8.EditorSuggest {
     };
   }
   async getSuggestions(ctx) {
+    var _a;
     const terms = ctx.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const catalog = await collectCatalogRefs(this.store, {
+    const { catalog, hay } = await cachedCatalogRefs(this.store, {
       cdn: this.opts.cdn(),
       selfhost: this.opts.selfhost()
     });
@@ -5532,8 +5596,8 @@ var IconSuggest = class extends import_obsidian8.EditorSuggest {
         break;
       if (seen.has(ref))
         continue;
-      const hay = hayFor(ref, catalog.deviconTags, catalog.selfhostTags);
-      if (terms.length === 0 || terms.every((term) => hay.some((h) => h.includes(term)))) {
+      const haystack = (_a = hay.get(ref)) != null ? _a : [];
+      if (terms.length === 0 || terms.every((term) => haystack.some((h) => h.includes(term)))) {
         seen.add(ref);
         out.push({ ref });
       }
@@ -5631,15 +5695,13 @@ var FrontmatterSuggest = class extends import_obsidian8.EditorSuggest {
     const matchDark = ctx.query.startsWith("dark:");
     const q = (matchDark ? ctx.query.slice("dark:".length) : ctx.query.slice("icon:".length)).trim().toLowerCase();
     const terms = q.split(/\s+/).filter(Boolean);
-    const catalog = await collectCatalogRefs(this.store, this.sources());
+    const { catalog, hay } = await cachedCatalogRefs(this.store, this.sources());
     return catalog.refs.filter((ref) => {
+      var _a;
       if (ref.startsWith("lucide:") && matchDark)
         return true;
-      return terms.length === 0 || terms.every(
-        (term) => hayFor(ref, catalog.deviconTags, catalog.selfhostTags).some(
-          (h) => h.includes(term)
-        )
-      );
+      const haystack = (_a = hay.get(ref)) != null ? _a : [];
+      return terms.length === 0 || terms.every((term) => haystack.some((h) => h.includes(term)));
     }).slice(0, this.limit).map((ref) => ({ ref }));
   }
   renderSuggestion(item, el) {
@@ -5814,6 +5876,7 @@ function importIcons(app, store, mapping, getFolder, onDone) {
 
 // main.ts
 var RECENT_LIMIT = 10;
+var FAVORITE_LIMIT = 200;
 var CONFLICT_IDS = ["iconic", "obsidian-iconize", "obsidian-icon-folder"];
 var DEFAULT_SETTINGS = {
   iconFolder: "_assets/icons",
@@ -5931,6 +5994,8 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.settings = { ...DEFAULT_SETTINGS };
     /** Hinweis bei Iconic oder Iconize, beide kämpfen um dieselben DOM Stellen. */
     this.warnedConflicts = false;
+    /** Meta Writes bündeln, das Envelope mit Cache ist groß. */
+    this.metaTimer = 0;
     this.cdnData = {};
     this.recentIcons = [];
     this.favoriteIcons = [];
@@ -6126,6 +6191,8 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
   }
   onunload() {
     var _a, _b, _c, _d;
+    window.clearTimeout(this.metaTimer);
+    void this.saveAll();
     (_a = this.cdn) == null ? void 0 : _a.flush();
     void ((_b = this.mapping) == null ? void 0 : _b.flush());
     (_c = this.explorer) == null ? void 0 : _c.stop();
@@ -6325,7 +6392,13 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       seen.add(ref);
     }
     this.recentIcons = this.recentIcons.slice(0, RECENT_LIMIT);
-    void this.saveAll();
+    this.saveMetaSoon();
+  }
+  saveMetaSoon() {
+    window.clearTimeout(this.metaTimer);
+    this.metaTimer = window.setTimeout(() => {
+      void this.saveAll();
+    }, 500);
   }
   toggleFavorite(ref) {
     const index = this.favoriteIcons.indexOf(ref);
@@ -6333,7 +6406,10 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       this.favoriteIcons.splice(index, 1);
     else
       this.favoriteIcons.push(ref);
-    void this.saveAll();
+    if (this.favoriteIcons.length > FAVORITE_LIMIT) {
+      this.favoriteIcons = this.favoriteIcons.slice(-FAVORITE_LIMIT);
+    }
+    this.saveMetaSoon();
     return index < 0;
   }
   async removeIcons(paths) {

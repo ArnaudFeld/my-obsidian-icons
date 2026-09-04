@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+import { App, TAbstractFile, TFile } from "obsidian";
 import { normalizeFolder, parseIconRef, parseSize } from "./icons";
 
 export interface MappingEntry {
@@ -190,11 +190,15 @@ export class MappingStore {
   /**
    * Rangfolge: direkter Pfad, dann Dateityp als Rückfall.
    * Nur für Dateien, Ordner fallen nie unter Dateityp.
+   * Bekannte Datei mitgeben spart den zweiten Vault Zugriff.
    */
-  resolve(path: string): MappingEntry | null {
+  resolve(path: string, knownFile?: TAbstractFile | null): MappingEntry | null {
     const direct = this.get(path);
     if (direct) return direct;
-    const file = this.app.vault.getAbstractFileByPath(path);
+    const file =
+      knownFile !== undefined
+        ? knownFile
+        : this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) return null;
     const ext = file.extension.trim().toLowerCase();
     if (!ext) return null;

@@ -112,14 +112,21 @@ export class TabsTitles {
         if (!entry) this.restoreTab(leaf, tabEl);
         else await this.paintTab(leaf, tabEl, entry);
       }
-    const titleEl = leaf.view.containerEl.querySelector(
-      ".inline-title",
-    ) as HTMLElement | null;
-    if (titleEl) {
-      titleEl.querySelector(":scope > .obsidian-icon-title")?.remove();
-      const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
-      if (entry) await this.paintTitle(titleEl, entry);
-    }
+      const titleEl = leaf.view.containerEl.querySelector(
+        ".inline-title",
+      ) as HTMLElement | null;
+      if (titleEl) {
+        const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
+        const key = entry
+          ? `${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`
+          : "";
+        const badge = titleEl.querySelector(":scope > .obsidian-icon-title");
+        if (titleEl.dataset.obsidianIconTitle !== key || (entry && !badge)) {
+          badge?.remove();
+          titleEl.dataset.obsidianIconTitle = key;
+          if (entry) await this.paintTitle(titleEl, entry);
+        }
+      }
   }
 
   private leafPath(leaf: WorkspaceLeaf): string | null {
@@ -156,7 +163,7 @@ export class TabsTitles {
     if (!ref) {
       return;
     }
-    if (ref.kind === "lucide" && !this.store.lucideIds().includes(ref.id)) {
+    if (ref.kind === "lucide" && !this.store.knowsLucide(ref.id)) {
       this.restoreTab(leaf, el);
       return;
     }

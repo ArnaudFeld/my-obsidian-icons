@@ -39,10 +39,23 @@ interface PickerItem {
   ref: string;
   label: string;
   group: string;
+  hay: string[];
   cdn?: boolean;
 }
 
 const PER_GROUP_LIMIT = 80;
+
+/** Suchfutter einmal pro Dialog bauen, nicht pro Tastenschlag. */
+function hayForPicker(ref: string): string[] {
+  const hay = [ref.toLowerCase()];
+  if (ref.startsWith("devicon/")) {
+    const tags = DEVICON_TAGS[ref.slice("devicon/".length)];
+    if (tags) hay.push(...tags);
+  } else if (ref.startsWith("lucide:")) {
+    hay.push(ref.slice("lucide:".length).toLowerCase());
+  }
+  return hay;
+}
 
 /**
  * Icon Auswahl mit Suche, Vorschau und Farbe wie bei Iconic:
@@ -107,15 +120,31 @@ export class IconPickerModal extends Modal {
             : "Eigene";
     const byRef = new Map<string, PickerItem>();
     for (const ref of this.cdnRefs) {
-      byRef.set(ref, { ref, label: `${ref} ⭳`, group: groupFor(ref), cdn: true });
+      byRef.set(ref, {
+        ref,
+        label: `${ref} ⭳`,
+        group: groupFor(ref),
+        hay: hayForPicker(ref),
+        cdn: true,
+      });
     }
     for (const name of names) {
-      byRef.set(name, { ref: name, label: name, group: groupFor(name) });
+      byRef.set(name, {
+        ref: name,
+        label: name,
+        group: groupFor(name),
+        hay: hayForPicker(name),
+      });
     }
     const svgItems = [...byRef.values()];
     const lucideItems: PickerItem[] = this.store
       .lucideIds()
-      .map((id) => ({ ref: `lucide:${id}`, label: id, group: "Lucide" }));
+      .map((id) => ({
+        ref: `lucide:${id}`,
+        label: id,
+        group: "Lucide",
+        hay: hayForPicker(`lucide:${id}`),
+      }));
     const known = new Set([
       ...svgItems.map((i) => i.ref),
       ...lucideItems.map((i) => i.ref),
@@ -125,13 +154,13 @@ export class IconPickerModal extends Modal {
     for (const ref of this.meta?.favorites ?? []) {
       if (known.has(ref) && !seenMeta.has(ref)) {
         seenMeta.add(ref);
-        metaItems.push({ ref, label: ref, group: "Favoriten" });
+        metaItems.push({ ref, label: ref, group: "Favoriten", hay: hayForPicker(ref) });
       }
     }
     for (const ref of this.meta?.recent ?? []) {
       if (known.has(ref) && !seenMeta.has(ref)) {
         seenMeta.add(ref);
-        metaItems.push({ ref, label: ref, group: "Zuletzt" });
+        metaItems.push({ ref, label: ref, group: "Zuletzt", hay: hayForPicker(ref) });
       }
     }
     this.items = [...metaItems, ...svgItems, ...lucideItems];
@@ -335,15 +364,12 @@ export class IconPickerModal extends Modal {
     box.addClass("obsidian-icon-picker-bigpreview");
   }
 
-  private matches(ref: string): boolean {
+  private matches(item: PickerItem): boolean {
     const q = this.query.trim().toLowerCase();
     if (!q) return true;
-    const hay = [ref.toLowerCase()];
-    if (ref.startsWith("devicon/")) {
-      const tags = DEVICON_TAGS[ref.slice("devicon/".length)];
-      if (tags) hay.push(...tags);
-    }
-    return q.split(/\s+/).every((term) => hay.some((h) => h.includes(term)));
+    return q
+      .split(/\s+/)
+      .every((term) => item.hay.some((h) => h.includes(term)));
   }
 
   private renderList(): void {
@@ -360,7 +386,7 @@ export class IconPickerModal extends Modal {
     let any = false;
     for (const group of groups) {
       const rows = this.items.filter(
-        (item) => item.group === group && this.matches(item.ref),
+        (item) => item.group === group && this.matches(item),
       );
       if (rows.length === 0) continue;
       any = true;

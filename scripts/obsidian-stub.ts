@@ -4,6 +4,14 @@ export class StubVault {
 
   getAbstractFileByPath(path: string): TFile | null {
     if (!this.files.has(path)) return null;
+    return this.asFile(path);
+  }
+
+  getFiles(): TFile[] {
+    return [...this.files.keys()].map((path) => this.asFile(path));
+  }
+
+  private asFile(path: string): TFile {
     const file = new TFile();
     file.path = path;
     const dot = path.lastIndexOf(".");
@@ -46,6 +54,15 @@ export class TFile extends TAbstractFile {
 export class TFolder extends TAbstractFile {}
 
 export class WorkspaceLeaf {}
+
+export class EditorSuggest<T> {
+  app: App;
+  limit = 0;
+  context: null = null;
+  constructor(app: App) {
+    this.app = app;
+  }
+}
 
 export function getIconIds(): string[] {
   return [];
