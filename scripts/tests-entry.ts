@@ -252,6 +252,52 @@ check("Sanitizer offenes Fremdobjekt und to Schema", () => {
   assert.ok(!anim.includes("javascript:"));
 });
 
+check("Sanitizer verwirft HTML nach Root SVG", () => {
+  const out = sanitizeSvg(
+    '<svg width="20" height="20"><rect/></svg><div>evil</div>',
+  );
+  assert.ok(!out.includes("<div>"));
+  assert.ok(out.includes("<svg"));
+});
+
+check("Sanitizer externe Paint URLs", () => {
+  const out = sanitizeSvg(
+    '<svg><rect fill="url(http://evil/x#f)" filter="url(//evil/f)"/><path fill="url(#g)"/></svg>',
+  );
+  assert.ok(!out.includes("http://evil"));
+  assert.ok(!out.includes("//evil"));
+  assert.ok(out.includes('fill="url(#g)"'));
+});
+
+check("Sanitizer kodiertes Stil URL", () => {
+  const out = sanitizeSvg(
+    '<svg><circle style="background:url&#40;http://evil/x&#41;"/></svg>',
+  );
+  assert.ok(!out.includes("http://evil"));
+});
+
+check("Sanitizer CSS Escape URL", () => {
+  const out = sanitizeSvg(
+    '<svg><circle style="fill:\\75rl(http://evil/x)"/></svg>',
+  );
+  assert.ok(!out.includes("http://evil"));
+});
+
+check("Sanitizer SMIL Event Attribute", () => {
+  const out = sanitizeSvg(
+    '<svg><set attributeName="onload" to="x"/><animate attributeName="x" to="100"/></svg>',
+  );
+  assert.ok(!out.toLowerCase().includes("onload"));
+  assert.ok(out.includes('to="100"'));
+});
+
+check("Sanitizer ungeschlossenes Stil", () => {
+  const out = sanitizeSvg(
+    '<svg><style>rect{fill:url(http://evil/x)}<rect fill="red"/></svg>',
+  );
+  assert.ok(!out.includes("http://evil"));
+});
+
 check("Ordner Norm wirft Punkte raus", () => {
   assert.equal(normalizeFolder("_assets/icons"), "_assets/icons");
   assert.equal(normalizeFolder("/a//b/"), "a/b");
@@ -440,6 +486,82 @@ await checkAsync("Import-Batch schreibt alles auf einmal", async () => {
   assert.equal(writes, 1);
   assert.deepEqual(store.get("a.md"), { icon: "eins" });
   assert.deepEqual(store.getExt("md"), { icon: "server" });
+});
+
+await checkAsync("Set während Load geht nicht verloren", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  await store.set("a.md", { icon: "eins" });
+  await Promise.all([store.load(), store.set("b.md", { icon: "zwei" })]);
+  assert.deepEqual(store.get("a.md"), { icon: "eins" });
+  assert.deepEqual(store.get("b.md"), { icon: "zwei" });
+  const raw = app.vault.files.get("_assets/icon-mapping.json") ?? "";
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  assert.deepEqual(parsed["a.md"], "eins");
+  assert.deepEqual(parsed["b.md"], "zwei");
+});
+
+await checkAsync("removePath löscht Datei und Ordner Kinder", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  await store.setMany([
+    ["ordner/a.md", { icon: "eins" }],
+    ["ordner/b.md", { icon: "zwei" }],
+    ["anders.md", { icon: "drei" }],
+  ]);
+  assert.equal(await store.removePath("ordner", true), true);
+  assert.equal(store.get("ordner/a.md"), null);
+  assert.equal(store.get("ordner/b.md"), null);
+  assert.deepEqual(store.get("anders.md"), { icon: "drei" });
+  assert.equal(await store.removePath("nix.md", false), false);
+  assert.equal(await store.removePath("anders.md", false), true);
+  assert.equal(store.get("anders.md"), null);
+});
+
+await checkAsync("migrateRename zieht Kinder mit um", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  await store.setMany([
+    ["alt/a.md", { icon: "eins" }],
+    ["solo.md", { icon: "zwei" }],
+  ]);
+  assert.equal(await store.migrateRename("alt", "neu", true), true);
+  assert.deepEqual(store.get("neu/a.md"), { icon: "eins" });
+  assert.equal(store.get("alt/a.md"), null);
+  assert.deepEqual(store.get("solo.md"), { icon: "zwei" });
+});
+
+await checkAsync("Reservierter Schlüssel bleibt unangetastet", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  await store.set("__ext__", { icon: "x" });
+  await store.setMany([["__ext__", { icon: "x" }]]);
+  await store.remove("__ext__");
+  await store.setExt("__ext__", { icon: "x" });
+  assert.deepEqual(store.entries(), []);
+  assert.deepEqual(store.extEntries(), []);
+  assert.equal(app.vault.files.get("_assets/icon-mapping.json"), undefined);
+});
+
+await checkAsync("Proto Namen lösen keinen Schreibvorgang aus", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  let writes = 0;
+  const origCreate = app.vault.create.bind(app.vault);
+  const origModify = app.vault.modify.bind(app.vault);
+  app.vault.create = async (path: string, content: string) => {
+    writes++;
+    return origCreate(path, content);
+  };
+  app.vault.modify = async (file: never, content: string) => {
+    writes++;
+    return origModify(file, content);
+  };
+  await store.set("a.md", { icon: "eins" });
+  assert.equal(writes, 1);
+  await store.remove("toString");
+  await store.removeMany(["valueOf"]);
+  assert.equal(writes, 1);
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

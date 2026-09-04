@@ -70,6 +70,8 @@ export class IconPickerModal extends Modal {
   private pickDark = false;
   private items: PickerItem[] = [];
   private localRefs = new Set<string>();
+  private filled = false;
+  private searchTimer = 0;
   private listEl!: HTMLElement;
   private saveBtn!: HTMLButtonElement;
   private saveFileBtn!: HTMLButtonElement;
@@ -97,17 +99,17 @@ export class IconPickerModal extends Modal {
     this.darkIcon = initial?.iconDark;
   }
 
-  async onOpen(): Promise<void> {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("obsidian-icon-picker");
-    contentEl.createEl("h3", { text: "Icon wählen" });
-    this.darkLine = contentEl.createDiv({
-      cls: "obsidian-icon-picker-more",
-    });
-    this.renderDarkLine();
-
+  /** Katalog trifft nach Dialog Start ein, Liste neu aufbauen. */
+  async refreshCdnRefs(refs: string[]): Promise<void> {
+    this.cdnRefs = refs;
+    // onOpen baut noch: es liest die dann aktuellen cdnRefs.
+    if (!this.filled) return;
     const names = await this.store.listSvgNames();
+    this.buildItems(names);
+    this.renderList();
+  }
+
+  private buildItems(names: string[]): void {
     const localSet = new Set(names);
     this.localRefs = localSet;
     const groupFor = (ref: string): string =>
@@ -164,11 +166,27 @@ export class IconPickerModal extends Modal {
       }
     }
     this.items = [...metaItems, ...svgItems, ...lucideItems];
+    this.filled = true;
+  }
+
+  async onOpen(): Promise<void> {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("obsidian-icon-picker");
+    contentEl.createEl("h3", { text: "Icon wählen" });
+    this.darkLine = contentEl.createDiv({
+      cls: "obsidian-icon-picker-more",
+    });
+    this.renderDarkLine();
+
+    const names = await this.store.listSvgNames();
+    this.buildItems(names);
 
     new Setting(contentEl).setName("Suchen").addText((text) => {
       text.setPlaceholder("Name tippen …").onChange((value) => {
         this.query = value;
-        this.renderList();
+        window.clearTimeout(this.searchTimer);
+        this.searchTimer = window.setTimeout(() => this.renderList(), 100);
       });
     });
 
@@ -307,6 +325,7 @@ export class IconPickerModal extends Modal {
   }
 
   onClose(): void {
+    window.clearTimeout(this.searchTimer);
     this.contentEl.empty();
   }
 
@@ -369,14 +388,6 @@ export class IconPickerModal extends Modal {
     box.addClass("obsidian-icon-picker-bigpreview");
   }
 
-  private matches(item: PickerItem): boolean {
-    const q = this.query.trim().toLowerCase();
-    if (!q) return true;
-    return q
-      .split(/\s+/)
-      .every((term) => item.hay.some((h) => h.includes(term)));
-  }
-
   private renderList(): void {
     this.listEl.empty();
     const groups = [
@@ -388,12 +399,23 @@ export class IconPickerModal extends Modal {
       "Self-Hosted",
       "Lucide",
     ];
+    const terms = this.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const buckets = new Map<string, PickerItem[]>();
+    for (const item of this.items) {
+      if (
+        terms.length > 0 &&
+        !terms.every((term) => item.hay.some((h) => h.includes(term)))
+      ) {
+        continue;
+      }
+      const bucket = buckets.get(item.group);
+      if (bucket) bucket.push(item);
+      else buckets.set(item.group, [item]);
+    }
     let any = false;
     for (const group of groups) {
-      const rows = this.items.filter(
-        (item) => item.group === group && this.matches(item),
-      );
-      if (rows.length === 0) continue;
+      const rows = buckets.get(group);
+      if (!rows || rows.length === 0) continue;
       any = true;
       this.listEl.createEl("div", {
         text: group,
@@ -484,6 +506,7 @@ export class IconPickerModal extends Modal {
       this.pickDark = false;
       this.darkBtn.setText("Dark-Icon wählen");
       this.renderDarkLine();
+      this.saveBtn.disabled = !this.selected;
       row.removeClass("is-selected");
       return;
     }

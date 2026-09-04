@@ -19,6 +19,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
+import { StateEffect } from "@codemirror/state";
 import {
   IconRef,
   IconStore,
@@ -31,7 +32,7 @@ import {
 } from "./icons";
 import { MappingStore, normalizeExt } from "./mapping";
 import { ExplorerIcons } from "./explorer";
-import { IconPickerModal, PickerResult } from "./picker";
+import { IconPickerModal, PickerMeta, PickerResult } from "./picker";
 import { IconGalleryModal, IconCheckModal } from "./gallery";
 import { IconSuggest, FrontmatterSuggest, collectCatalogRefs, clearCatalogCache } from "./suggest";
 import { TabsTitles } from "./tabs-titles";
@@ -131,6 +132,7 @@ function resolveDarkRef(
 }
 
 class IconWidget extends WidgetType {
+  private readonly darkMode: boolean;
   constructor(
     private ref: IconRef,
     private size: string | undefined,
@@ -139,6 +141,7 @@ class IconWidget extends WidgetType {
     private store: IconStore,
   ) {
     super();
+    this.darkMode = isDarkTheme();
   }
 
   eq(other: IconWidget): boolean {
@@ -153,6 +156,7 @@ class IconWidget extends WidgetType {
       a.char === b.char &&
       this.size === other.size &&
       this.color === other.color &&
+      this.darkMode === other.darkMode &&
       da?.name === db?.name &&
       da?.id === db?.id &&
       da?.kind === db?.kind
@@ -161,14 +165,19 @@ class IconWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const span = document.createElement("span");
-    const ref = isDarkTheme() && this.dark ? this.dark : this.ref;
+    const ref = this.darkMode && this.dark ? this.dark : this.ref;
     void renderIconInto(span, ref, this.store, {
       size: this.size,
       color: this.color,
+    }).catch(() => {
+      span.setText("?");
     });
     return span;
   }
 }
+
+/** Theme Wechsel als Effekt, damit Live Preview Icons neu bauen. */
+const iconThemeEffect = StateEffect.define<number>();
 
 function buildIconExtension(
   store: IconStore,
@@ -200,6 +209,14 @@ function buildIconExtension(
         this.decorations = matcher.createDeco(view);
       }
       update(update: ViewUpdate): void {
+        for (const tr of update.transactions) {
+          for (const e of tr.effects) {
+            if (e.is(iconThemeEffect)) {
+              this.decorations = matcher.createDeco(update.view);
+              return;
+            }
+          }
+        }
         this.decorations = matcher.updateDeco(update, this.decorations);
       }
     },
@@ -294,12 +311,13 @@ export default class InlineSvgIconsPlugin extends Plugin {
         this.app.workspace.updateOptions();
         this.explorer.refreshSoon();
         this.chrome.refreshSoon();
+        this.refreshEditorIcons();
       }),
     );
 
     this.registerEvent(this.app.vault.on("create", (f) => this.onVault(f)));
     this.registerEvent(this.app.vault.on("modify", (f) => this.onVault(f)));
-    this.registerEvent(this.app.vault.on("delete", (f) => this.onVault(f)));
+    this.registerEvent(this.app.vault.on("delete", (f) => this.onDelete(f)));
     this.registerEvent(
       this.app.vault.on("rename", (f, oldPath) => this.onRename(f, oldPath)),
     );
@@ -445,8 +463,8 @@ export default class InlineSvgIconsPlugin extends Plugin {
 
   onunload(): void {
     window.clearTimeout(this.metaTimer);
-    void this.saveAll();
     this.cdn?.flush();
+    void this.saveAll();
     void this.mapping?.flush();
     this.explorer?.stop();
     this.chrome?.stop();
@@ -470,6 +488,21 @@ export default class InlineSvgIconsPlugin extends Plugin {
       );
     }
   }
+  /** Live Preview Deko in allen Editoren neu bauen, etwa nach Theme Wechsel. */
+  private refreshEditorIcons(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+      const editor = (
+        leaf.view as unknown as { editor?: { cm?: EditorView } }
+      ).editor?.cm;
+      if (!editor) continue;
+      try {
+        editor.dispatch({ effects: iconThemeEffect.of(Date.now()) });
+      } catch {
+        // Ansicht ohne lebendigen Editor, ignorieren.
+      }
+    }
+  }
+
   private onVault(file: TAbstractFile | string): void {
     const path = typeof file === "string" ? file : file.path;
     if (this.mapping.isMappingPath(path)) {
@@ -486,10 +519,26 @@ export default class InlineSvgIconsPlugin extends Plugin {
   private onRename(file: TAbstractFile, oldPath: string): void {
     if (this.mapping.isMappingPath(file.path)) return;
     const isFolder = file instanceof TFolder;
-    if (this.mapping.migrateRename(oldPath, file.path, isFolder)) {
-      this.explorer.refreshSoon();
-    }
-    this.chrome.refreshSoon();
+    void this.mapping
+      .migrateRename(oldPath, file.path, isFolder)
+      .then((changed) => {
+        if (changed) this.explorer.refreshSoon();
+        this.chrome.refreshSoon();
+      });
+  }
+
+  private onDelete(file: TAbstractFile): void {
+    const path = file.path;
+    if (this.mapping.isMappingPath(path)) return;
+    const isFolder = file instanceof TFolder;
+    void this.mapping.removePath(path, isFolder).then((changed) => {
+      if (changed) {
+        this.explorer.refreshSoon();
+        this.chrome.refreshSoon();
+      }
+    });
+    this.icons.invalidatePath(path);
+    if (path.toLowerCase().endsWith(".svg")) clearCatalogCache();
   }
 
   openExtPicker(ext: string, initial: PickerResult | null, onSaved?: () => void): void {
@@ -601,22 +650,39 @@ export default class InlineSvgIconsPlugin extends Plugin {
     initial: PickerResult | null,
     onPick: (result: PickerResult) => void,
   ): void {
-    void this.cdnRefs().then(async (refs) => {
-      await this.pruneMeta(refs);
-      new IconPickerModal(this.app, this.icons, initial, (result) => {
+    // Dialog sofort öffnen, Katalog trifft async ein. Ohne Netz nur lokale Icons.
+    const meta: PickerMeta = {
+      favorites: [...this.favoriteIcons],
+      recent: [...this.recentIcons],
+      onToggleFavorite: (ref) => {
+        this.toggleFavorite(ref);
+        meta.favorites = [...this.favoriteIcons];
+      },
+    };
+    const modal = new IconPickerModal(
+      this.app,
+      this.icons,
+      initial,
+      (result) => {
         if (result) onPick(result);
-      }, refs, (ref) => {
+      },
+      [],
+      (ref) => {
         void this.saveCdnToFile(ref);
-      }, {
-        favorites: [...this.favoriteIcons],
-        recent: [...this.recentIcons],
-        onToggleFavorite: (ref) => {
-          this.toggleFavorite(ref);
-        },
-      }).open();
-    }).catch(() => {
-      new Notice("Icon Auswahl konnte nicht geöffnet werden");
-    });
+      },
+      meta,
+    );
+    modal.open();
+    void this.cdnRefs()
+      .then(async (refs) => {
+        await this.pruneMeta(refs);
+        meta.favorites = [...this.favoriteIcons];
+        meta.recent = [...this.recentIcons];
+        await modal.refreshCdnRefs(refs);
+      })
+      .catch(() => {
+        // Nur lokale Icons, Katalog bleibt leer.
+      });
   }
 
   /** Katalog Referenzen, die nur per CDN verfügbar sind, nicht als Datei. */
@@ -963,7 +1029,19 @@ export default class InlineSvgIconsPlugin extends Plugin {
     }
   }
 
-  private async saveAll(): Promise<void> {
+  /** Aufeinanderfolgende Saves, damit sich parallele Writes nicht überholen. */
+  private dataSaveQueue: Promise<void> = Promise.resolve();
+
+  private saveAll(): Promise<void> {
+    const run = this.dataSaveQueue.then(() => this.writeAll());
+    this.dataSaveQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async writeAll(): Promise<void> {
     const envelope: PluginEnvelope = {
       settings: this.settings,
       cdnCache: this.cdnData,
@@ -983,6 +1061,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
     await this.mapping.load();
     this.explorer.refreshSoon();
     this.chrome.refreshSoon();
+    this.refreshEditorIcons();
     this.app.workspace.updateOptions();
   }
 }

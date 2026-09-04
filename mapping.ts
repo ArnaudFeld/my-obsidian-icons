@@ -72,18 +72,20 @@ export class MappingStore {
     return path === this.mappingPath();
   }
 
+  /** Mutation oder Read als Einheit in die Schlange, kein Überholen. */
+  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.saveQueue.then(fn, fn);
+    this.saveQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
   async load(): Promise<void> {
     for (let i = 0; i < 3; i++) {
       const seen = this.rev;
-      const run = this.saveQueue.then(
-        () => this.readFile(),
-        () => this.readFile(),
-      );
-      this.saveQueue = run.then(
-        () => undefined,
-        () => undefined,
-      );
-      await run;
+      await this.enqueue(() => this.readFile());
       if (this.rev === seen) return;
     }
   }
@@ -116,7 +118,7 @@ export class MappingStore {
     for (const key of Object.keys(rec)) {
       const norm = normalizeExt(key);
       if (norm && norm !== key) {
-        if (!(norm in rec)) rec[norm] = rec[key];
+        if (!Object.prototype.hasOwnProperty.call(rec, norm)) rec[norm] = rec[key];
         delete rec[key];
       }
     }
@@ -164,35 +166,39 @@ export class MappingStore {
 
   async setExt(ext: string, entry: MappingEntry): Promise<void> {
     const key = normalizeExt(ext) ?? ext;
-    if (!isSafeKey(key)) return;
+    if (!isSafeKey(key) || key === EXT_KEY) return;
     const clean: MappingEntry = { icon: entry.icon };
     if (entry.color) clean.color = entry.color;
     if (entry.size) clean.size = entry.size;
     if (entry.iconDark) clean.iconDark = entry.iconDark;
-    const section = this.extSection();
-    section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
-    this.data[EXT_KEY] = section as unknown as MappingEntry;
-    this.rev++;
-    await this.save();
+    await this.enqueue(async () => {
+      const section = this.extSection();
+      section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
+      this.data[EXT_KEY] = section as unknown as MappingEntry;
+      this.rev++;
+      await this.writeFile();
+    });
   }
 
   async removeExt(ext: string): Promise<void> {
-    const section = this.extSection();
-    const target = ext.replace(/^\.+/, "").toLowerCase();
-    let changed = false;
-    for (const key of Object.keys(section)) {
-      if (!isSafeKey(key)) continue;
-      if (key.replace(/^\.+/, "").toLowerCase() === target) {
-        delete section[key];
-        changed = true;
+    await this.enqueue(async () => {
+      const section = this.extSection();
+      const target = ext.replace(/^\.+/, "").toLowerCase();
+      let changed = false;
+      for (const key of Object.keys(section)) {
+        if (!isSafeKey(key)) continue;
+        if (key.replace(/^\.+/, "").toLowerCase() === target) {
+          delete section[key];
+          changed = true;
+        }
       }
-    }
-    if (changed) {
-      if (Object.keys(section).length === 0) delete this.data[EXT_KEY];
-      else this.data[EXT_KEY] = section as unknown as MappingEntry;
-      this.rev++;
-      await this.save();
-    }
+      if (changed) {
+        if (Object.keys(section).length === 0) delete this.data[EXT_KEY];
+        else this.data[EXT_KEY] = section as unknown as MappingEntry;
+        this.rev++;
+        await this.writeFile();
+      }
+    });
   }
 
   /**
@@ -227,21 +233,27 @@ export class MappingStore {
   }
 
   async set(path: string, entry: MappingEntry): Promise<void> {
-    if (!isSafeKey(path)) return;
-    this.data[path] = MappingStore.asStored(entry);
-    this.rev++;
-    await this.save();
+    if (!isSafeKey(path) || path === EXT_KEY) return;
+    await this.enqueue(async () => {
+      this.data[path] = MappingStore.asStored(entry);
+      this.rev++;
+      await this.writeFile();
+    });
   }
 
   /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
   async setMany(items: [string, MappingEntry][]): Promise<void> {
-    const clean = items.filter(([path]) => isSafeKey(path));
+    const clean = items.filter(
+      ([path]) => isSafeKey(path) && path !== EXT_KEY,
+    );
     if (clean.length === 0) return;
-    for (const [path, entry] of clean) {
-      this.data[path] = MappingStore.asStored(entry);
-    }
-    this.rev++;
-    await this.save();
+    await this.enqueue(async () => {
+      for (const [path, entry] of clean) {
+        this.data[path] = MappingStore.asStored(entry);
+      }
+      this.rev++;
+      await this.writeFile();
+    });
   }
 
   /** Import Paket mit nur einem Schreibvorgang. */
@@ -249,106 +261,111 @@ export class MappingStore {
     items: [string, MappingEntry][],
     ext: [string, MappingEntry][],
   ): Promise<void> {
-    for (const [path, entry] of items) {
-      if (!isSafeKey(path)) continue;
-      this.data[path] = MappingStore.asStored(entry);
-    }
-    if (ext.length > 0) {
-      const section = this.extSection();
-      for (const [raw, entry] of ext) {
-        const key = normalizeExt(raw) ?? raw;
-        if (!isSafeKey(key)) continue;
-        section[key] = MappingStore.asStored(entry);
+    await this.enqueue(async () => {
+      for (const [path, entry] of items) {
+        if (!isSafeKey(path) || path === EXT_KEY) continue;
+        this.data[path] = MappingStore.asStored(entry);
       }
-      this.data[EXT_KEY] = section as unknown as MappingEntry;
-    }
-    this.rev++;
-    await this.save();
+      if (ext.length > 0) {
+        const section = this.extSection();
+        for (const [raw, entry] of ext) {
+          const key = normalizeExt(raw) ?? raw;
+          if (!isSafeKey(key)) continue;
+          section[key] = MappingStore.asStored(entry);
+        }
+        this.data[EXT_KEY] = section as unknown as MappingEntry;
+      }
+      this.rev++;
+      await this.writeFile();
+    });
   }
 
   async remove(path: string): Promise<void> {
-    if (!isSafeKey(path)) return;
-    if (path in this.data) {
-      delete this.data[path];
-      this.rev++;
-      await this.save();
-    }
+    if (!isSafeKey(path) || path === EXT_KEY) return;
+    await this.enqueue(async () => {
+      if (Object.prototype.hasOwnProperty.call(this.data, path)) {
+        delete this.data[path];
+        this.rev++;
+        await this.writeFile();
+      }
+    });
   }
 
   /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
   async removeMany(paths: string[]): Promise<void> {
-    let changed = false;
-    for (const path of paths) {
-      if (!isSafeKey(path)) continue;
-      if (path in this.data) {
-        delete this.data[path];
-        changed = true;
+    await this.enqueue(async () => {
+      let changed = false;
+      for (const path of paths) {
+        if (!isSafeKey(path) || path === EXT_KEY) continue;
+        if (Object.prototype.hasOwnProperty.call(this.data, path)) {
+          delete this.data[path];
+          changed = true;
+        }
       }
-    }
-    if (changed) {
-      this.rev++;
-      await this.save();
-    }
+      if (changed) {
+        this.rev++;
+        await this.writeFile();
+      }
+    });
   }
 
   /** Ordner Umbenennung zieht Kinder mit um. */
-  migrateRename(oldPath: string, newPath: string, isFolder: boolean): boolean {
+  async migrateRename(
+    oldPath: string,
+    newPath: string,
+    isFolder: boolean,
+  ): Promise<boolean> {
     if (oldPath === EXT_KEY || !isSafeKey(oldPath) || !isSafeKey(newPath)) {
       return false;
     }
-    let changed = false;
-    if (oldPath in this.data) {
-      this.data[newPath] = this.data[oldPath];
-      delete this.data[oldPath];
-      changed = true;
-    }
-    if (isFolder) {
-      const prefix = oldPath + "/";
-      for (const key of Object.keys(this.data)) {
-        if (key.startsWith(prefix)) {
-          this.data[newPath + key.slice(oldPath.length)] = this.data[key];
-          delete this.data[key];
-          changed = true;
+    return this.enqueue(async () => {
+      let changed = false;
+      if (Object.prototype.hasOwnProperty.call(this.data, oldPath)) {
+        this.data[newPath] = this.data[oldPath];
+        delete this.data[oldPath];
+        changed = true;
+      }
+      if (isFolder) {
+        const prefix = oldPath + "/";
+        for (const key of Object.keys(this.data)) {
+          if (key.startsWith(prefix)) {
+            this.data[newPath + key.slice(oldPath.length)] = this.data[key];
+            delete this.data[key];
+            changed = true;
+          }
         }
       }
-    }
-    if (changed) {
-      this.rev++;
-      void this.save();
-    }
-    return changed;
+      if (changed) {
+        this.rev++;
+        await this.writeFile();
+      }
+      return changed;
+    });
   }
 
-  removePath(path: string, isFolder: boolean): boolean {
+  async removePath(path: string, isFolder: boolean): Promise<boolean> {
     if (path === EXT_KEY || !isSafeKey(path)) return false;
-    let changed = false;
-    if (path in this.data) {
-      delete this.data[path];
-      changed = true;
-    }
-    if (isFolder) {
-      const prefix = path + "/";
-      for (const key of Object.keys(this.data)) {
-        if (key.startsWith(prefix)) {
-          delete this.data[key];
-          changed = true;
+    return this.enqueue(async () => {
+      let changed = false;
+      if (Object.prototype.hasOwnProperty.call(this.data, path)) {
+        delete this.data[path];
+        changed = true;
+      }
+      if (isFolder) {
+        const prefix = path + "/";
+        for (const key of Object.keys(this.data)) {
+          if (key.startsWith(prefix)) {
+            delete this.data[key];
+            changed = true;
+          }
         }
       }
-    }
-    if (changed) {
-      this.rev++;
-      void this.save();
-    }
-    return changed;
-  }
-
-  private save(): Promise<void> {
-    const run = this.saveQueue.then(() => this.writeFile());
-    this.saveQueue = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
+      if (changed) {
+        this.rev++;
+        await this.writeFile();
+      }
+      return changed;
+    });
   }
 
   /** Offene Saves abwarten, Best Effort beim Entladen. */

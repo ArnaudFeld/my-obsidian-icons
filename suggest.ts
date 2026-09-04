@@ -286,7 +286,6 @@ export class FrontmatterSuggest extends EditorSuggest<SuggestItem> {
     const { catalog, hay } = await cachedCatalogRefs(this.store, this.sources());
     return catalog.refs
       .filter((ref) => {
-        if (ref.startsWith("lucide:") && matchDark) return true;
         const haystack = hay.get(ref) ?? [];
         return (
           terms.length === 0 ||

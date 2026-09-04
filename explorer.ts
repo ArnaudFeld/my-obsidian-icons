@@ -81,7 +81,18 @@ export class ExplorerIcons {
     ) as HTMLElement | null;
     if (!container || this.containers.has(container)) return;
     this.containers.add(container);
-    const observer = new MutationObserver(() => this.refreshSoon());
+    const observer = new MutationObserver((muts) => {
+      // Eigene Badge Malungen ignorieren, sonst Endlosschleife bei Missing.
+      const own = muts.every((m) => {
+        const target = m.target as Element | null;
+        return (
+          !!target &&
+          typeof (target as HTMLElement).closest === "function" &&
+          (target as HTMLElement).closest(".obsidian-icon-explorer") !== null
+        );
+      });
+      if (!own) this.refreshSoon();
+    });
     observer.observe(container, {
       subtree: true,
       childList: true,

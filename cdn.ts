@@ -33,6 +33,8 @@ const SELFHOST_BRANCH = "main";
 const DEVICON_VARIANTS = ["plain", "original", "line"];
 const MAX_ENTRIES = 150;
 const MAX_BYTES = 1500000;
+/** Einzelnes CDN Icon über dieser Größe wird verworfen, schützt data.json. */
+const MAX_SINGLE_SVG_BYTES = 262144;
 
 /** Erneuter Netzversuch nach Fehlschlag, damit Offline Start nicht kleben bleibt. */
 export const MISSING_TTL_MS = 5 * 60 * 1000;
@@ -58,9 +60,11 @@ async function fetchText(url: string): Promise<string | null> {
   try {
     const res = await requestUrl({ url });
     if (res.status !== 200) return null;
-    return typeof res.text === "string" && res.text.includes("<svg")
-      ? res.text
-      : null;
+    if (typeof res.text !== "string" || !res.text.includes("<svg")) {
+      return null;
+    }
+    if (res.text.length > MAX_SINGLE_SVG_BYTES) return null;
+    return res.text;
   } catch {
     return null;
   }
@@ -385,6 +389,8 @@ export class CdnCache {
   }
 
   private add(name: string, svg: string): void {
+    // Zu groß fürs Budget: rendern ja, cachen nein.
+    if (svg.length > MAX_BYTES) return;
     const old = this.cache.get(name);
     if (old !== undefined) {
       this.bytes -= old.length;

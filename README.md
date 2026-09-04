@@ -14,15 +14,16 @@ Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. 
 {{icon:name|red}}
 {{icon:name|24|blue}}
 {{icon:name|dark:simple/docker}}
+{{icon:emoji:📁}}
 ```
 
-Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. Zweiter bis vierter Teil in beliebiger Reihenfolge: Größe, Farbe als Theme Name oder CSS Farbe, oder dunkle Variante mit `dark:`. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie datenbank.
+Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. Zweiter bis vierter Teil in beliebiger Reihenfolge: Größe, Farbe als Theme Name oder CSS Farbe, oder dunkle Variante mit `dark:`. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. `emoji:` zeigt ein Emoji Zeichen, ebenfalls ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie database.
 
 Fehlt eine Datei, zeigt das Plugin `[name]` mit Tooltip und schreibt eine Warnung in die Konsole.
 
 ## Explorer Icons per Rechtsklick
 
-Rechtsklick auf Datei oder Ordner, dann Icon ändern. Im Picker lassen sich Farbe und optionale Größe je Eintrag setzen, zum Beispiel Homelab auf 1,4em. Das geht auch per Rechtsklick in der geöffneten Notiz. Der Befehl Icon für aktive Datei wählen öffnet denselben Dialog und lässt sich unter Einstellungen, Hotkeys mit einem Kürzel belegen. Wer den Shortcode in den Text schreiben will, nimmt Rechtsklick, Icon einfügen oder den Befehl Icon in Notiz einfügen, ebenfalls mit Kürzel belegbar. Der Dialog zeigt Suche mit Vorschau über eigene SVGs, Devicon, Simple und Lucide. Danach eine Farbreihe mit neun Theme Farben wie bei Iconic, dazu keine und ein freier Hex Wähler. Icon entfernen löscht die Zuordnung. Mehrfachauswahl bekommt dasselbe Icon auf einmal.
+Rechtsklick auf Datei oder Ordner, dann Icon ändern. Im Picker lassen sich Farbe und optionale Größe je Eintrag setzen, zum Beispiel Homelab auf 1.4em. Das geht auch per Rechtsklick in der geöffneten Notiz. Der Befehl Icon für aktive Datei wählen öffnet denselben Dialog und lässt sich unter Einstellungen, Hotkeys mit einem Kürzel belegen. Wer den Shortcode in den Text schreiben will, nimmt Rechtsklick, Icon einfügen oder den Befehl Icon in Notiz einfügen, ebenfalls mit Kürzel belegbar. Der Dialog zeigt Suche mit Vorschau über eigene SVGs, Devicon, Simple und Lucide. Danach eine Farbreihe mit neun Theme Farben wie bei Iconic, dazu keine und ein freier Hex Wähler. Icon entfernen löscht die Zuordnung. Mehrfachauswahl bekommt dasselbe Icon auf einmal.
 Gespeichert wird in `_assets/icon-mapping.json` im Vault, zum Beispiel:
 
 ```json
@@ -44,7 +45,7 @@ Tableiste und Notiz Titel zeigen dasselbe Icon aus Mapping oder Frontmatter, je 
 
 ## Export und Import
 
-Die Befehle Icons exportieren und Icons importieren sowie die Knöpfe in den Einstellungen packen Mapping plus genutzte SVGs in eine `icons-export-YYYY-MM-DD.json` im Vault oder lesen sie ein. Vorhandene Dateien bleiben beim Import stehen, Dateien über 500 KB sowie mehr als 10 MB oder 500 Dateien pro Paket werden übersprungen.
+Die Befehle Icons exportieren und Icons importieren sowie die Knöpfe in den Einstellungen packen Mapping plus genutzte SVGs in eine `icons-export-YYYY-MM-DD.json` im Vault oder lesen sie ein. Vorhandene Dateien bleiben beim Import stehen, Dateien über 500 KB sowie mehr als 10 MB oder 500 Dateien pro Paket werden übersprungen, ebenso mehr als 5000 Mapping Einträge.
 
 Devicon Dateien mit genau einer Farbe werden bei gewählter Farbe umgefärbt, mehrfarbige und Verläufe behalten ihre Originalfarben. Das gilt auch für eigene SVGs und Simple Icons mit genau einer festen Farbe, zum Beispiel schwarze Pfade. Alles ohne feste Farbe folgt der gewählten Farbe über currentColor.
 
@@ -62,11 +63,11 @@ Die Mapping Datei ist für Sync gemacht, aber ohne Zusammenführung: Setzen zwei
 
 ## Picker Extras
 
-Der Picker zeigt oben Favoriten und Zuletzt verwendet, jeweils nur wenn vorhanden. Der Stern in jeder Zeile heftet ein Icon an oder löst es wieder. Beide Listen liegen pro Gerät in den Plugin Daten.
+Der Picker zeigt oben Favoriten und Zuletzt verwendet, jeweils nur wenn vorhanden. Der Stern in jeder Zeile heftet ein Icon an oder löst es wieder. Über Dark-Icon wählen lässt sich eine Variante für das dunkle Theme festlegen, danach ein Icon aus der Liste anklicken. Bei schlechter Lesbarkeit der gewählten Farbe auf dem Theme Hintergrund warnt der Picker. Beide Listen liegen pro Gerät in den Plugin Daten.
 
 ## Galerie und Konflikte
 
-Der Befehl Icon Galerie öffnen listet alle vergebenen Icons mit Pfad und Entfernen Knopf sowie ungenutzte Dateien im Icon Ordner. Der Befehl Icons prüfen meldet Mapping Einträge ohne Ziel und zählt ungenutzte Dateien, ohne Netz. Ist Iconic, Iconize oder Icon Folder gleichzeitig aktiv, zeigt das Plugin einmal pro Sitzung einen Hinweis, da alle um dieselben DOM Stellen konkurrieren.
+Der Befehl Icon Galerie öffnen listet alle vergebenen Icons mit Pfad und Entfernen Knopf sowie ungenutzte Dateien im Icon Ordner. Der Befehl Icons prüfen meldet Mapping Einträge ohne Ziel und zählt ungenutzte Dateien, ohne Netz. Der Befehl Icons neu laden liest Ordner und Caches neu ein. Ist Iconic, Iconize oder Icon Folder gleichzeitig aktiv, zeigt das Plugin einmal pro Sitzung einen Hinweis, da alle um dieselben DOM Stellen konkurrieren.
 
 ## Mobil
 

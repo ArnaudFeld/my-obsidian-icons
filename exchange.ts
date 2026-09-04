@@ -1,5 +1,5 @@
 import { App, Notice, TFile } from "obsidian";
-import { IconStore, normalizeSvgName, sanitizeSvg } from "./icons";
+import { IconStore, normalizeSvgName, parseIconRef, sanitizeSvg } from "./icons";
 import { EXT_KEY, IconMapping, MappingEntry, MappingStore, normalizeEntry, normalizeExt } from "./mapping";
 
 export interface IconPackage {
@@ -14,6 +14,8 @@ export const MAX_IMPORT_FILE_BYTES = 500_000;
 /** Gesamt Paket, schützt vor vielen fast großen Dateien. */
 export const MAX_IMPORT_TOTAL_BYTES = 10_000_000;
 export const MAX_IMPORT_FILES = 500;
+/** Mapping Einträge Obergrenze, schützt die Mapping Datei vor Bloat. */
+export const MAX_IMPORT_ENTRIES = 5000;
 
 async function collectFiles(
   app: App,
@@ -104,12 +106,22 @@ export function importIcons(
     const file = input.files?.[0];
     if (!file) return;
     void (async () => {
+      if (file.size > MAX_IMPORT_TOTAL_BYTES) {
+        new Notice("Import fehlgeschlagen: Datei zu groß");
+        return;
+      }
+      let pkg: unknown;
       try {
-        const pkg: unknown = JSON.parse(await file.text());
-        if (!isPackage(pkg)) {
-          new Notice("Import fehlgeschlagen: keine gültige Datei");
-          return;
-        }
+        pkg = JSON.parse(await file.text());
+      } catch {
+        new Notice("Import fehlgeschlagen: keine gültige Datei");
+        return;
+      }
+      if (!isPackage(pkg)) {
+        new Notice("Import fehlgeschlagen: keine gültige Datei");
+        return;
+      }
+      try {
         const folder = getFolder().trim().replace(/^\/+/, "").replace(/\/+$/, "");
         let written = 0;
         let skipped = 0;
@@ -147,9 +159,19 @@ export function importIcons(
         const pathItems: [string, MappingEntry][] = [];
         for (const [path, value] of Object.entries(pkg.mapping)) {
           if (path === EXT_KEY) continue;
-          if (path.includes("..") || path.startsWith("/")) continue;
+          if (!path || path.startsWith("/") || path.split("/").includes("..")) {
+            skipped++;
+            continue;
+          }
           const entry = normalizeEntry(value as string | MappingEntry);
-          if (!entry) continue;
+          if (!entry || !parseIconRef(entry.icon)) {
+            skipped++;
+            continue;
+          }
+          if (entries >= MAX_IMPORT_ENTRIES) {
+            skipped++;
+            continue;
+          }
           pathItems.push([path, entry]);
           entries++;
         }
@@ -161,7 +183,14 @@ export function importIcons(
           )) {
             const ext = normalizeExt(raw);
             const entry = normalizeEntry(value);
-            if (!ext || !entry) continue;
+            if (!ext || !entry || !parseIconRef(entry.icon)) {
+              skipped++;
+              continue;
+            }
+            if (entries >= MAX_IMPORT_ENTRIES) {
+              skipped++;
+              continue;
+            }
             extItems.push([ext, entry]);
             entries++;
           }
@@ -173,7 +202,7 @@ export function importIcons(
           `Importiert: ${entries} Einträge, ${written} Dateien (${skipped} übersprungen)`,
         );
       } catch {
-        new Notice("Import fehlgeschlagen: keine gültige Datei");
+        new Notice("Import abgebrochen: Schreibfehler, Teilstand bleibt");
       }
     })();
   };

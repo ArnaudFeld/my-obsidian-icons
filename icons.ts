@@ -124,6 +124,15 @@ export function parseSize(raw: string | undefined): string | undefined {
   return undefined;
 }
 
+/** CSS Escapes auflösen, nur zur Prüfung von Stil Werten. */
+function decodeCssEscapes(value: string): string {
+  return value
+    .replace(/\\([0-9a-f]{1,6})\s?/gi, (_m, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
+    .replace(/\\(.)/gs, "$1");
+}
+
 /** Zahlen Entities auflösen, nur zur Prüfung von Attribut Werten. */
 const NAMED_ENTITIES: Record<string, string> = {
   colon: ":",
@@ -166,7 +175,11 @@ function cleanCss(css: string): string {
 
 /** Minimaler Schutz für eigene Vault Dateien, kein Ersatz für volle Sanitizer. */
 export function sanitizeSvg(svg: string): string {
-  return svg
+  if (!/<svg[\s>/]/i.test(svg)) return "";
+  // Nur das erste Root-SVG behalten, HTML davor und danach verwerfen.
+  const root = /<svg[\s\S]*?<\/svg\s*>/i.exec(svg);
+  let out = root ? root[0] : svg;
+  out = out
     .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
     .replace(/<script\b[^>]*>/gi, "")
     .replace(/<\/script\s*>/gi, "")
@@ -176,15 +189,45 @@ export function sanitizeSvg(svg: string): string {
     .replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "")
     .replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
     .replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css: string) => {
-      return `<style>${cleanCss(css)}</style>`;
+      const cleaned = cleanCss(decodeCssEscapes(decodeEntities(css)));
+      // Dekodierter Ausbruch aus dem Block: ganzen Block verwerfen.
+      if (/<\/style|<!--/i.test(cleaned)) return "";
+      return `<style>${cleaned}</style>`;
     })
+    // Ungeschlossenes style: Rest ist für den Browser CSS-Text.
+    .replace(/<style\b[^>]*>(?![\s\S]*<\/style\s*>)[\s\S]*$/i, "")
     .replace(/[\s/'"]on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(
       /[\s/'"]style\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
       (_m, raw: string) => {
-        const quote = raw[0] === '"' || raw[0] === "'" ? raw[0] : "";
-        const body = quote ? raw.slice(1, -1) : raw;
-        return ` style=${quote}${cleanCss(body)}${quote}`;
+        const body = raw[0] === '"' || raw[0] === "'" ? raw.slice(1, -1) : raw;
+        const cleaned = cleanCss(decodeCssEscapes(decodeEntities(body)));
+        // Neu quoten und escapen, dekodierte Zeichen können nicht ausbrechen.
+        const esc = cleaned
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        return ` style="${esc}"`;
+      },
+    )
+    .replace(
+      /[\s/'"](fill|stroke|filter|mask|clip-path|marker|marker-start|marker-mid|marker-end)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      (m, _attr: string, raw: string) => {
+        const value = decodeCssEscapes(
+          decodeEntities(raw.replace(/^['"]|['"]$/g, "")),
+        )
+          .trim()
+          .toLowerCase();
+        if (value.includes("expression")) return "";
+        // Externe url() Ziele verwerfen, nur lokale Fragmente bleiben.
+        const withoutLocal = value.replace(
+          /url\s*\(\s*['"]?#[^'")]*['"]?\s*\)/g,
+          "",
+        );
+        if (/url\s*\(/.test(withoutLocal)) return "";
+        if (value.includes(":")) return "";
+        return m;
       },
     )
     .replace(
@@ -197,14 +240,22 @@ export function sanitizeSvg(svg: string): string {
         const name = attr.toLowerCase();
         if (
           (name === "to" || name === "from" || name === "by" || name === "values") &&
-          !value.includes(":")
+          !value.includes(":") &&
+          !value.startsWith("//") &&
+          !value.startsWith("\\\\")
         ) {
           return m;
         }
         return "";
       },
     )
+    // SMIL darf keine Event Attribute setzen.
+    .replace(
+      /<(set|animate|animateTransform|animateMotion)\b[^>]*attributeName\s*=\s*(["']?)\s*on[a-z]*[^>]*\/?>/gi,
+      "",
+    )
     .replace(/javascript\s*:/gi, "");
+  return out;
 }
 
 export const THEME_COLORS = [
@@ -261,6 +312,7 @@ const contrastCache = new Map<string, number | null>();
 export function contrastOnBackground(color: string): number | null {
   const key = `${isDarkTheme() ? "dark" : "light"}|${color.trim().toLowerCase()}`;
   if (contrastCache.has(key)) return contrastCache.get(key) ?? null;
+  if (contrastCache.size > 500) contrastCache.clear();
   let out: number | null = null;
   try {
     const probe = document.createElement("span");
@@ -349,7 +401,12 @@ export class IconStore {
   }
 
   knowsLucide(id: string): boolean {
-    if (!this.lucideSet) this.lucideSet = new Set(this.lucideIds());
+    if (!this.lucideSet) {
+      const ids = this.lucideIds();
+      // Leer nicht cachen, später erneut versuchen.
+      if (ids.length === 0) return false;
+      this.lucideSet = new Set(ids);
+    }
     return this.lucideSet.has(id);
   }
 
