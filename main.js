@@ -331,16 +331,16 @@ function normalizeExt(raw) {
   return /^[a-z0-9]+$/.test(ext) ? ext : null;
 }
 function normalizeEntry(value) {
-  var _a;
   if (typeof value === "string") {
     const icon = value.trim();
     return icon ? { icon } : null;
   }
   if (value && typeof value.icon === "string" && value.icon.trim()) {
     const entry = { icon: value.icon.trim() };
-    if (value.color && value.color.trim())
+    if (typeof value.color === "string" && value.color.trim()) {
       entry.color = value.color.trim();
-    const size = parseSize((_a = value.size) == null ? void 0 : _a.trim());
+    }
+    const size = typeof value.size === "string" ? parseSize(value.size.trim()) : void 0;
     if (size)
       entry.size = size;
     if (typeof value.iconDark === "string" && parseIconRef(value.iconDark)) {
@@ -355,6 +355,8 @@ var MappingStore = class _MappingStore {
     this.app = app;
     this.getFile = getFile;
     this.data = {};
+    /** Aufeinanderfolgende Saves, damit sich parallele Writes nicht überholen. */
+    this.saveQueue = Promise.resolve();
   }
   mappingPath() {
     return normalizeFolder(this.getFile());
@@ -363,7 +365,8 @@ var MappingStore = class _MappingStore {
     return path === this.mappingPath();
   }
   async load() {
-    this.data = {};
+    await this.saveQueue.catch(() => {
+    });
     try {
       const file = this.app.vault.getAbstractFileByPath(this.mappingPath());
       if (!(file instanceof import_obsidian2.TFile))
@@ -372,9 +375,26 @@ var MappingStore = class _MappingStore {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         this.data = parsed;
+        this.normalizeExtKeys();
       }
     } catch (e) {
-      console.warn("[inline-svg-icons] Mapping Datei ung\xFCltig, leer gestartet");
+      console.warn("[inline-svg-icons] Mapping Datei ung\xFCltig, Stand behalten");
+    }
+  }
+  /** Alte großgeschriebene Endungen im Speicher heilen, nächster Save sichert. */
+  normalizeExtKeys() {
+    const section = this.data[EXT_KEY];
+    if (!section || typeof section !== "object" || Array.isArray(section)) {
+      return;
+    }
+    const rec = section;
+    for (const key of Object.keys(rec)) {
+      const norm = normalizeExt(key);
+      if (norm && norm !== key) {
+        if (!(norm in rec))
+          rec[norm] = rec[key];
+        delete rec[key];
+      }
     }
   }
   get(path) {
@@ -410,9 +430,16 @@ var MappingStore = class _MappingStore {
     return out.sort((a, b) => a[0].localeCompare(b[0]));
   }
   getExt(ext) {
-    return normalizeEntry(this.extSection()[ext]);
+    const section = this.extSection();
+    const direct = normalizeEntry(section[ext]);
+    if (direct)
+      return direct;
+    const norm = normalizeExt(ext);
+    return norm && norm !== ext ? normalizeEntry(section[norm]) : null;
   }
   async setExt(ext, entry) {
+    var _a;
+    const key = (_a = normalizeExt(ext)) != null ? _a : ext;
     const clean = { icon: entry.icon };
     if (entry.color)
       clean.color = entry.color;
@@ -421,14 +448,24 @@ var MappingStore = class _MappingStore {
     if (entry.iconDark)
       clean.iconDark = entry.iconDark;
     const section = this.extSection();
-    section[ext] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
+    section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
     this.data[EXT_KEY] = section;
     await this.save();
   }
   async removeExt(ext) {
     const section = this.extSection();
-    if (ext in section) {
-      delete section[ext];
+    const keys = [ext];
+    const norm = normalizeExt(ext);
+    if (norm && norm !== ext)
+      keys.push(norm);
+    let changed = false;
+    for (const key of keys) {
+      if (key in section) {
+        delete section[key];
+        changed = true;
+      }
+    }
+    if (changed) {
       if (Object.keys(section).length === 0)
         delete this.data[EXT_KEY];
       else
@@ -542,7 +579,15 @@ var MappingStore = class _MappingStore {
       void this.save();
     return changed;
   }
-  async save() {
+  save() {
+    const run = this.saveQueue.then(() => this.writeFile());
+    this.saveQueue = run.then(
+      () => void 0,
+      () => void 0
+    );
+    return run;
+  }
+  async writeFile() {
     const path = this.mappingPath();
     const content = JSON.stringify(this.data, null, 2) + "\n";
     const file = this.app.vault.getAbstractFileByPath(path);
@@ -4219,6 +4264,7 @@ var SELFHOST_BRANCH = "main";
 var DEVICON_VARIANTS = ["plain", "original", "line"];
 var MAX_ENTRIES = 150;
 var MAX_BYTES = 15e5;
+var MISSING_TTL_MS = 5 * 60 * 1e3;
 var standDates = {
   devicon: null,
   simple: null,
@@ -4428,7 +4474,7 @@ var CdnCache = class {
   constructor(persist) {
     this.persist = persist;
     this.cache = /* @__PURE__ */ new Map();
-    this.missing = /* @__PURE__ */ new Set();
+    this.missing = /* @__PURE__ */ new Map();
     this.bytes = 0;
     this.saveTimer = 0;
     this.dirty = false;
@@ -4463,14 +4509,18 @@ var CdnCache = class {
     const hit = this.cache.get(name);
     if (hit !== void 0)
       return hit;
-    if (this.missing.has(name))
-      return null;
+    const missedAt = this.missing.get(name);
+    if (missedAt !== void 0) {
+      if (Date.now() - missedAt < MISSING_TTL_MS)
+        return null;
+      this.missing.delete(name);
+    }
     const split = splitCdnRef(name);
     if (!split)
       return null;
     const svg = split.kind === "devicon" ? await fetchDeviconSvg(split.key) : split.kind === "simple" ? await fetchSimpleSvg(split.key) : await fetchSelfhostSvg(split.key);
     if (!svg) {
-      this.missing.add(name);
+      this.missing.set(name, Date.now());
       return null;
     }
     this.add(name, svg);

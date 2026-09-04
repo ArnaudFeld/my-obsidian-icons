@@ -1,29 +1,28 @@
 import esbuild from "esbuild";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { rmSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = join(fileURLToPath(import.meta.url), "..", "..");
 const outFile = join(
   tmpdir(),
-  `inline-svg-icons-tests-${process.pid}.cjs`,
+  `inline-svg-icons-tests-${process.pid}.mjs`,
 );
 
 await esbuild.build({
   entryPoints: [join(root, "scripts", "tests-entry.ts")],
   bundle: true,
   platform: "node",
-  format: "cjs",
-  target: "es2018",
+  format: "esm",
+  target: "es2022",
   logLevel: "silent",
   outfile: outFile,
   alias: { obsidian: join(root, "scripts", "obsidian-stub.ts") },
 });
 
 try {
-  createRequire(import.meta.url)(outFile);
+  await import(pathToFileURL(outFile).href);
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

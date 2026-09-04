@@ -34,6 +34,9 @@ const DEVICON_VARIANTS = ["plain", "original", "line"];
 const MAX_ENTRIES = 150;
 const MAX_BYTES = 1500000;
 
+/** Erneuter Netzversuch nach Fehlschlag, damit Offline Start nicht kleben bleibt. */
+export const MISSING_TTL_MS = 5 * 60 * 1000;
+
 export type CatalogSource = "devicon" | "simple" | "selfhosted";
 
 const standDates: Record<CatalogSource, string | null> = {
@@ -296,7 +299,7 @@ export function splitCdnRef(
  */
 export class CdnCache {
   private cache = new Map<string, string>();
-  private missing = new Set<string>();
+  private missing = new Map<string, number>();
   private bytes = 0;
   private saveTimer = 0;
   private dirty = false;
@@ -343,7 +346,11 @@ export class CdnCache {
   async getSvg(name: string): Promise<string | null> {
     const hit = this.cache.get(name);
     if (hit !== undefined) return hit;
-    if (this.missing.has(name)) return null;
+    const missedAt = this.missing.get(name);
+    if (missedAt !== undefined) {
+      if (Date.now() - missedAt < MISSING_TTL_MS) return null;
+      this.missing.delete(name);
+    }
     const split = splitCdnRef(name);
     if (!split) return null;
     const svg =
@@ -353,7 +360,7 @@ export class CdnCache {
           ? await fetchSimpleSvg(split.key)
           : await fetchSelfhostSvg(split.key);
     if (!svg) {
-      this.missing.add(name);
+      this.missing.set(name, Date.now());
       return null;
     }
     this.add(name, svg);

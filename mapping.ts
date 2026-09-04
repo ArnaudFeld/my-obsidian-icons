@@ -29,8 +29,11 @@ export function normalizeEntry(
   }
   if (value && typeof value.icon === "string" && value.icon.trim()) {
     const entry: MappingEntry = { icon: value.icon.trim() };
-    if (value.color && value.color.trim()) entry.color = value.color.trim();
-    const size = parseSize(value.size?.trim());
+    if (typeof value.color === "string" && value.color.trim()) {
+      entry.color = value.color.trim();
+    }
+    const size =
+      typeof value.size === "string" ? parseSize(value.size.trim()) : undefined;
     if (size) entry.size = size;
     if (typeof value.iconDark === "string" && parseIconRef(value.iconDark)) {
       entry.iconDark = value.iconDark.trim();
@@ -46,6 +49,8 @@ export function normalizeEntry(
  */
 export class MappingStore {
   private data: IconMapping = {};
+  /** Aufeinanderfolgende Saves, damit sich parallele Writes nicht überholen. */
+  private saveQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private app: App,
@@ -61,7 +66,7 @@ export class MappingStore {
   }
 
   async load(): Promise<void> {
-    this.data = {};
+    await this.saveQueue.catch(() => {});
     try {
       const file = this.app.vault.getAbstractFileByPath(this.mappingPath());
       if (!(file instanceof TFile)) return;
@@ -69,9 +74,26 @@ export class MappingStore {
       const parsed: unknown = JSON.parse(raw);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         this.data = parsed as IconMapping;
+        this.normalizeExtKeys();
       }
     } catch {
-      console.warn("[inline-svg-icons] Mapping Datei ungültig, leer gestartet");
+      console.warn("[inline-svg-icons] Mapping Datei ungültig, Stand behalten");
+    }
+  }
+
+  /** Alte großgeschriebene Endungen im Speicher heilen, nächster Save sichert. */
+  private normalizeExtKeys(): void {
+    const section: unknown = this.data[EXT_KEY];
+    if (!section || typeof section !== "object" || Array.isArray(section)) {
+      return;
+    }
+    const rec = section as Record<string, string | MappingEntry>;
+    for (const key of Object.keys(rec)) {
+      const norm = normalizeExt(key);
+      if (norm && norm !== key) {
+        if (!(norm in rec)) rec[norm] = rec[key];
+        delete rec[key];
+      }
     }
   }
 
@@ -108,24 +130,38 @@ export class MappingStore {
   }
 
   getExt(ext: string): MappingEntry | null {
-    return normalizeEntry(this.extSection()[ext]);
+    const section = this.extSection();
+    const direct = normalizeEntry(section[ext]);
+    if (direct) return direct;
+    const norm = normalizeExt(ext);
+    return norm && norm !== ext ? normalizeEntry(section[norm]) : null;
   }
 
   async setExt(ext: string, entry: MappingEntry): Promise<void> {
+    const key = normalizeExt(ext) ?? ext;
     const clean: MappingEntry = { icon: entry.icon };
     if (entry.color) clean.color = entry.color;
     if (entry.size) clean.size = entry.size;
     if (entry.iconDark) clean.iconDark = entry.iconDark;
     const section = this.extSection();
-    section[ext] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
+    section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
     this.data[EXT_KEY] = section as unknown as MappingEntry;
     await this.save();
   }
 
   async removeExt(ext: string): Promise<void> {
     const section = this.extSection();
-    if (ext in section) {
-      delete section[ext];
+    const keys = [ext];
+    const norm = normalizeExt(ext);
+    if (norm && norm !== ext) keys.push(norm);
+    let changed = false;
+    for (const key of keys) {
+      if (key in section) {
+        delete section[key];
+        changed = true;
+      }
+    }
+    if (changed) {
       if (Object.keys(section).length === 0) delete this.data[EXT_KEY];
       else this.data[EXT_KEY] = section as unknown as MappingEntry;
       await this.save();
@@ -235,7 +271,16 @@ export class MappingStore {
     return changed;
   }
 
-  private async save(): Promise<void> {
+  private save(): Promise<void> {
+    const run = this.saveQueue.then(() => this.writeFile());
+    this.saveQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async writeFile(): Promise<void> {
     const path = this.mappingPath();
     const content = JSON.stringify(this.data, null, 2) + "\n";
     const file = this.app.vault.getAbstractFileByPath(path);
