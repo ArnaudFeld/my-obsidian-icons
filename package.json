@@ -1,0 +1,24 @@
+{
+  "name": "inline-svg-icons",
+  "version": "0.0.1",
+  "description": "Obsidian Plugin: {{icon:name}} in Notizen und Explorer Icons per Rechtsklick",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "fetch-icons": "python3 scripts/fetch-icons.py",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "devDependencies": {
+    "@codemirror/language": "^6.10.1",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.33.0",
+    "@types/node": "^20.11.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "0.20.2",
+    "obsidian": "latest",
+    "typescript": "^5.3.3"
+  }
+}

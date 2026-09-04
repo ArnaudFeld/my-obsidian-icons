@@ -1,0 +1,152 @@
+.obsidian-icon-inline {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  line-height: 1;
+}
+
+.obsidian-icon-inline svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: currentColor;
+}
+
+.obsidian-icon-inline.obsidian-icon-missing {
+  width: auto;
+  height: auto;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  border: 1px dashed var(--text-muted);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* Explorer Icons vor Datei und Ordnernamen */
+.obsidian-icon-explorer {
+  display: inline-flex;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.obsidian-icon-explorer svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Icon Picker */
+.obsidian-icon-picker-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 4px;
+  margin: 8px 0;
+}
+
+.obsidian-icon-picker-group {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 6px 2px;
+}
+
+.obsidian-icon-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.obsidian-icon-picker-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.obsidian-icon-picker-row.is-selected {
+  background: var(--background-modifier-active-hover);
+}
+
+.obsidian-icon-picker-preview {
+  width: 1.4em;
+  height: 1.4em;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.obsidian-icon-picker-preview svg {
+  width: 100%;
+  height: 100%;
+}
+
+.obsidian-icon-picker-name {
+  font-size: 0.9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-icon-picker-more {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  padding: 2px 6px 6px;
+}
+
+.obsidian-icon-picker-label {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.obsidian-icon-picker-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.obsidian-icon-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.obsidian-icon-dot.is-selected {
+  border-color: var(--text-normal);
+}
+
+.obsidian-icon-dot-none {
+  width: auto;
+  height: 22px;
+  border-radius: 11px;
+  padding: 0 8px;
+  font-size: 0.75em;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+}
+
+.obsidian-icon-dot-hex {
+  width: 32px;
+  height: 22px;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.obsidian-icon-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
