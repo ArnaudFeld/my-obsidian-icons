@@ -240,7 +240,7 @@ export class IconPickerModal extends Modal {
     };
     this.hexText.onchange = () => {
       const value = this.hexText.value.trim();
-      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)) {
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)) {
         this.color = value;
       }
       this.refreshColorUI();
@@ -326,7 +326,7 @@ export class IconPickerModal extends Modal {
     } else {
       this.colorNameEl.textContent = this.color;
     }
-    if (/^#[0-9a-f]{6}$/i.test(this.color ?? "")) {
+    if (/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(this.color ?? "")) {
       try {
         this.hexSwatch.value = this.color as string;
       } catch {

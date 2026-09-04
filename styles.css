@@ -27,6 +27,20 @@
   padding: 0 4px;
 }
 
+/* Titel Icon vor dem Notiz Titel */
+.obsidian-icon-title {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  margin-right: 0.3em;
+}
+
+/* Farbbereich im Picker */
+.obsidian-icon-picker-colors {
+  margin-top: 12px;
+}
+
 /* Explorer Icons vor Datei und Ordnernamen */
 .obsidian-icon-explorer {
   display: inline-flex;

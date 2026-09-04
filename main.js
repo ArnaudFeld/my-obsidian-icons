@@ -5082,7 +5082,7 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     };
     this.hexText.onchange = () => {
       const value = this.hexText.value.trim();
-      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)) {
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)) {
         this.color = value;
       }
       this.refreshColorUI();
@@ -5161,7 +5161,7 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     } else {
       this.colorNameEl.textContent = this.color;
     }
-    if (/^#[0-9a-f]{6}$/i.test((_a = this.color) != null ? _a : "")) {
+    if (/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test((_a = this.color) != null ? _a : "")) {
       try {
         this.hexSwatch.value = this.color;
       } catch (e) {
@@ -5349,8 +5349,9 @@ var IconGalleryModal = class extends import_obsidian7.Modal {
     contentEl.addClass("obsidian-icon-gallery");
     contentEl.createEl("h3", { text: "Icon Galerie" });
     const used = this.mapping.entries();
+    const extRules = this.mapping.extEntries();
     contentEl.createEl("div", {
-      text: `Verwendet (${used.length})`,
+      text: `Vergeben (${used.length} Pfade, ${extRules.length} Regeln)`,
       cls: "obsidian-icon-picker-group"
     });
     if (used.length === 0) {
@@ -6081,11 +6082,11 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
         menu.addItem(
-          (item) => item.setTitle("Change icon").setIcon("image-plus").onClick(() => this.openPicker([file.path]))
+          (item) => item.setTitle("Icon \xE4ndern").setIcon("image-plus").onClick(() => this.openPicker([file.path]))
         );
         if (this.mapping.get(file.path)) {
           menu.addItem(
-            (item) => item.setTitle("Remove icon").setIcon("trash").onClick(() => this.removeIcons([file.path]))
+            (item) => item.setTitle("Icon entfernen").setIcon("trash").onClick(() => this.removeIcons([file.path]))
           );
         }
       })
@@ -6094,11 +6095,11 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       this.app.workspace.on("files-menu", (menu, files) => {
         const paths = files.map((f) => f.path);
         menu.addItem(
-          (item) => item.setTitle(`Change icons (${paths.length})`).setIcon("image-plus").onClick(() => this.openPicker(paths))
+          (item) => item.setTitle(`Icons \xE4ndern (${paths.length})`).setIcon("image-plus").onClick(() => this.openPicker(paths))
         );
         if (paths.some((p) => this.mapping.get(p))) {
           menu.addItem(
-            (item) => item.setTitle(`Remove icons (${paths.length})`).setIcon("trash").onClick(() => this.removeIcons(paths))
+            (item) => item.setTitle(`Icons entfernen (${paths.length})`).setIcon("trash").onClick(() => this.removeIcons(paths))
           );
         }
       })
@@ -6172,17 +6173,17 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor, view) => {
         menu.addItem(
-          (item) => item.setTitle("Insert icon").setIcon("plus").onClick(() => this.openInsertPicker(editor))
+          (item) => item.setTitle("Icon einf\xFCgen").setIcon("plus").onClick(() => this.openInsertPicker(editor))
         );
         const file = view.file;
         if (!(file instanceof import_obsidian10.TFile))
           return;
         menu.addItem(
-          (item) => item.setTitle("Change icon").setIcon("image-plus").onClick(() => this.openPicker([file.path]))
+          (item) => item.setTitle("Icon \xE4ndern").setIcon("image-plus").onClick(() => this.openPicker([file.path]))
         );
         if (this.mapping.get(file.path)) {
           menu.addItem(
-            (item) => item.setTitle("Remove icon").setIcon("trash").onClick(() => this.removeIcons([file.path]))
+            (item) => item.setTitle("Icon entfernen").setIcon("trash").onClick(() => this.removeIcons([file.path]))
           );
         }
       })
@@ -6466,7 +6467,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     const parts = [];
     if (this.settings.cdnEnabled) {
       parts.push(`Devicon: ${(_a = stand.devicon) != null ? _a : "eingebaut (v2.17.0)"}`);
-      parts.push(`Simple: ${(_b = stand.simple) != null ? _b : "eingebaut (16.29.0)"}`);
+      parts.push(`Simple: ${(_b = stand.simple) != null ? _b : "eingebaut (kuratiert)"}`);
     }
     if (this.settings.selfhostEnabled) {
       parts.push(
@@ -6766,7 +6767,7 @@ var InlineSvgIconsSettingTab = class extends import_obsidian10.PluginSettingTab 
       })
     );
     new import_obsidian10.Setting(containerEl).setName("CDN Nachladen").setDesc(
-      "Fehlende Devicon und Simple Icons von jsdelivr laden und auf diesem Ger\xE4t cachen."
+      "Fehlende Devicon und Simple Icons von jsdelivr laden und auf diesem Ger\xE4t cachen. Teilt sich den Cache mit Self-Hosted."
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.cdnEnabled).onChange(async (value) => {
         this.plugin.settings.cdnEnabled = value;

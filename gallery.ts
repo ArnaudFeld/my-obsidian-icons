@@ -31,8 +31,9 @@ export class IconGalleryModal extends Modal {
     contentEl.createEl("h3", { text: "Icon Galerie" });
 
     const used = this.mapping.entries();
+    const extRules = this.mapping.extEntries();
     contentEl.createEl("div", {
-      text: `Verwendet (${used.length})`,
+      text: `Vergeben (${used.length} Pfade, ${extRules.length} Regeln)`,
       cls: "obsidian-icon-picker-group",
     });
     if (used.length === 0) {

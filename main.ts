@@ -308,14 +308,14 @@ export default class InlineSvgIconsPlugin extends Plugin {
       this.app.workspace.on("file-menu", (menu, file) => {
         menu.addItem((item) =>
           item
-            .setTitle("Change icon")
+            .setTitle("Icon ändern")
             .setIcon("image-plus")
             .onClick(() => this.openPicker([file.path])),
         );
         if (this.mapping.get(file.path)) {
           menu.addItem((item) =>
             item
-              .setTitle("Remove icon")
+              .setTitle("Icon entfernen")
               .setIcon("trash")
               .onClick(() => this.removeIcons([file.path])),
           );
@@ -327,14 +327,14 @@ export default class InlineSvgIconsPlugin extends Plugin {
         const paths = files.map((f) => f.path);
         menu.addItem((item) =>
           item
-            .setTitle(`Change icons (${paths.length})`)
+            .setTitle(`Icons ändern (${paths.length})`)
             .setIcon("image-plus")
             .onClick(() => this.openPicker(paths)),
         );
         if (paths.some((p) => this.mapping.get(p))) {
           menu.addItem((item) =>
             item
-              .setTitle(`Remove icons (${paths.length})`)
+              .setTitle(`Icons entfernen (${paths.length})`)
               .setIcon("trash")
               .onClick(() => this.removeIcons(paths)),
           );
@@ -417,7 +417,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
       this.app.workspace.on("editor-menu", (menu, editor, view) => {
         menu.addItem((item) =>
           item
-            .setTitle("Insert icon")
+            .setTitle("Icon einfügen")
             .setIcon("plus")
             .onClick(() => this.openInsertPicker(editor)),
         );
@@ -425,14 +425,14 @@ export default class InlineSvgIconsPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
         menu.addItem((item) =>
           item
-            .setTitle("Change icon")
+            .setTitle("Icon ändern")
             .setIcon("image-plus")
             .onClick(() => this.openPicker([file.path])),
         );
         if (this.mapping.get(file.path)) {
           menu.addItem((item) =>
             item
-              .setTitle("Remove icon")
+              .setTitle("Icon entfernen")
               .setIcon("trash")
               .onClick(() => this.removeIcons([file.path])),
           );
@@ -731,7 +731,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
     const parts: string[] = [];
     if (this.settings.cdnEnabled) {
       parts.push(`Devicon: ${stand.devicon ?? "eingebaut (v2.17.0)"}`);
-      parts.push(`Simple: ${stand.simple ?? "eingebaut (16.29.0)"}`);
+      parts.push(`Simple: ${stand.simple ?? "eingebaut (kuratiert)"}`);
     }
     if (this.settings.selfhostEnabled) {
       parts.push(
@@ -1077,7 +1077,7 @@ class InlineSvgIconsSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("CDN Nachladen")
       .setDesc(
-        "Fehlende Devicon und Simple Icons von jsdelivr laden und auf diesem Gerät cachen.",
+        "Fehlende Devicon und Simple Icons von jsdelivr laden und auf diesem Gerät cachen. Teilt sich den Cache mit Self-Hosted.",
       )
       .addToggle((toggle) =>
         toggle

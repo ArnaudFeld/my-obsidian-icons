@@ -11,15 +11,18 @@ Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. 
 {{icon:lucide:server}}
 {{icon:name|24}}
 {{icon:name|1.5em}}
+{{icon:name|red}}
+{{icon:name|24|blue}}
+{{icon:name|dark:simple/docker}}
 ```
 
-Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie datenbank.
+Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. Zweiter bis vierter Teil in beliebiger Reihenfolge: Größe, Farbe als Theme Name oder CSS Farbe, oder dunkle Variante mit `dark:`. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie datenbank.
 
 Fehlt eine Datei, zeigt das Plugin `[name]` mit Tooltip und schreibt eine Warnung in die Konsole.
 
 ## Explorer Icons per Rechtsklick
 
-Rechtsklick auf Datei oder Ordner, dann Change icon. Im Picker lassen sich Farbe und optionale Größe je Eintrag setzen, zum Beispiel Homelab auf 1,4em. Das geht auch per Rechtsklick in der geöffneten Notiz. Der Befehl Icon für aktive Datei wählen öffnet denselben Dialog und lässt sich unter Einstellungen, Hotkeys mit einem Kürzel belegen. Wer den Shortcode in den Text schreiben will, nimmt Rechtsklick, Insert icon oder den Befehl Icon in Notiz einfügen, ebenfalls mit Kürzel belegbar. Der Dialog zeigt Suche mit Vorschau über eigene SVGs, Devicon, Simple und Lucide. Danach eine Farbreihe mit neun Theme Farben wie bei Iconic, dazu keine und ein freier Hex Wähler. Remove icon löscht die Zuordnung. Mehrfachauswahl bekommt dasselbe Icon auf einmal.
+Rechtsklick auf Datei oder Ordner, dann Icon ändern. Im Picker lassen sich Farbe und optionale Größe je Eintrag setzen, zum Beispiel Homelab auf 1,4em. Das geht auch per Rechtsklick in der geöffneten Notiz. Der Befehl Icon für aktive Datei wählen öffnet denselben Dialog und lässt sich unter Einstellungen, Hotkeys mit einem Kürzel belegen. Wer den Shortcode in den Text schreiben will, nimmt Rechtsklick, Icon einfügen oder den Befehl Icon in Notiz einfügen, ebenfalls mit Kürzel belegbar. Der Dialog zeigt Suche mit Vorschau über eigene SVGs, Devicon, Simple und Lucide. Danach eine Farbreihe mit neun Theme Farben wie bei Iconic, dazu keine und ein freier Hex Wähler. Icon entfernen löscht die Zuordnung. Mehrfachauswahl bekommt dasselbe Icon auf einmal.
 Gespeichert wird in `_assets/icon-mapping.json` im Vault, zum Beispiel:
 
 ```json
@@ -41,13 +44,13 @@ Tableiste und Notiz Titel zeigen dasselbe Icon aus Mapping oder Frontmatter, je 
 
 ## Export und Import
 
-Die Befehle Icons exportieren und Icons importieren sowie die Knöpfe in den Einstellungen packen Mapping plus genutzte SVGs in eine `icons-export.json` im Vault oder lesen sie ein. Vorhandene Dateien bleiben beim Import stehen.
+Die Befehle Icons exportieren und Icons importieren sowie die Knöpfe in den Einstellungen packen Mapping plus genutzte SVGs in eine `icons-export-YYYY-MM-DD.json` im Vault oder lesen sie ein. Vorhandene Dateien bleiben beim Import stehen, Dateien über 500 KB sowie mehr als 10 MB oder 500 Dateien pro Paket werden übersprungen.
 
 Devicon Dateien mit genau einer Farbe werden bei gewählter Farbe umgefärbt, mehrfarbige und Verläufe behalten ihre Originalfarben. Das gilt auch für eigene SVGs und Simple Icons mit genau einer festen Farbe, zum Beispiel schwarze Pfade. Alles ohne feste Farbe folgt der gewählten Farbe über currentColor.
 
 ## CDN Nachladen
 
-In den Einstellungen lässt sich CDN Nachladen einschalten. Fehlt ein devicon oder simple Icon als Datei, lädt das Plugin es von jsdelivr und cacht es auf dem Gerät, begrenzt auf 150 Einträge. Die Namenslisten kommen live aus devicon.json, slugs.md und selfh.st index.json, mit eingebautem Rückfall und Stand Anzeige plus Neu laden Knopf. Im Picker stehen alle Namen mit Wolkensymbol, die Auswahl lädt bei Bedarf nach. Offline gilt der Cache weiter. Über Als Datei speichern landet ein CDN Icon als SVG in _assets/icons, zum Beispiel zum Bearbeiten oder für Git.
+In den Einstellungen lässt sich CDN Nachladen einschalten. Fehlt ein devicon oder simple Icon als Datei, lädt das Plugin es von jsdelivr und cacht es auf dem Gerät, begrenzt auf 150 Einträge und 1,5 MB. Fehlschläge versucht es nach 5 Minuten neu. Die Namenslisten kommen live aus devicon.json, slugs.md und selfh.st index.json, mit eingebautem Rückfall und Stand Anzeige plus Neu laden Knopf. Im Picker stehen alle Namen mit Wolkensymbol, die Auswahl lädt bei Bedarf nach. Offline gilt der Cache weiter. Über Als Datei speichern landet ein CDN Icon als SVG in _assets/icons, zum Beispiel zum Bearbeiten oder für Git.
 
 Eigener Schalter für Self-Hosted Icons von selfh.st als `selfhosted:name`, etwa 2.400 Homelab Marken mit Tags. Im dunklen Theme automatisch die helle Variante wenn vorhanden und Helle Variante automatisch an ist, eine von Hand gewählte Dunkel Variante gewinnt immer.
 
