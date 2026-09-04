@@ -121,11 +121,18 @@ export class IconPickerModal extends Modal {
       ...lucideItems.map((i) => i.ref),
     ]);
     const metaItems: PickerItem[] = [];
+    const seenMeta = new Set<string>();
     for (const ref of this.meta?.favorites ?? []) {
-      if (known.has(ref)) metaItems.push({ ref, label: ref, group: "Favoriten" });
+      if (known.has(ref) && !seenMeta.has(ref)) {
+        seenMeta.add(ref);
+        metaItems.push({ ref, label: ref, group: "Favoriten" });
+      }
     }
     for (const ref of this.meta?.recent ?? []) {
-      if (known.has(ref)) metaItems.push({ ref, label: ref, group: "Zuletzt" });
+      if (known.has(ref) && !seenMeta.has(ref)) {
+        seenMeta.add(ref);
+        metaItems.push({ ref, label: ref, group: "Zuletzt" });
+      }
     }
     this.items = [...metaItems, ...svgItems, ...lucideItems];
 

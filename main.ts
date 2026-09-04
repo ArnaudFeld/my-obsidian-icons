@@ -519,6 +519,25 @@ export default class InlineSvgIconsPlugin extends Plugin {
     });
   }
 
+  /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog. */
+  private async pruneMeta(cdnRefs: string[]): Promise<void> {
+    const known = new Set([
+      ...(await this.icons.listSvgNames()),
+      ...cdnRefs,
+      ...this.icons.lucideIds().map((id) => `lucide:${id}`),
+    ]);
+    let changed = false;
+    const keep = (list: string[]): string[] =>
+      list.filter((ref) => {
+        if (known.has(ref)) return true;
+        changed = true;
+        return false;
+      });
+    this.favoriteIcons = keep(this.favoriteIcons);
+    this.recentIcons = keep(this.recentIcons).slice(0, RECENT_LIMIT);
+    if (changed) await this.saveAll();
+  }
+
   /** Gleicher Dialog zum Einfügen als Shortcode in die Notiz. */
   private openInsertPicker(editor: Editor): void {
     const cursor = editor.getCursor();
@@ -542,7 +561,8 @@ export default class InlineSvgIconsPlugin extends Plugin {
     initial: PickerResult | null,
     onPick: (result: PickerResult) => void,
   ): void {
-    void this.cdnRefs().then((refs) => {
+    void this.cdnRefs().then(async (refs) => {
+      await this.pruneMeta(refs);
       new IconPickerModal(this.app, this.icons, initial, (result) => {
         if (result) onPick(result);
       }, refs, (ref) => {
@@ -740,22 +760,30 @@ export default class InlineSvgIconsPlugin extends Plugin {
       }
     }
     const entries = this.mapping.entries();
-    for (const [path, entry] of [...entries, ...this.mapping.extEntries().map(([ext, value]): [string, typeof value] => [`*.${ext}`, value])]) {
-      const ref = parseIconRef(entry.icon);
-      let ok = false;
-      if (ref) {
-        if (ref.kind === "emoji") ok = ref.char.length > 0;
-        else if (ref.kind === "lucide") ok = lucide.has(ref.id);
-        else {
-          ok =
-            resolvable.has(ref.name) ||
-            (ref.name.startsWith("selfhosted/") &&
-              ref.name.endsWith("-light") &&
-              resolvable.has(ref.name.slice(0, -"-light".length))) ||
-            !!this.cdn.peek(ref.name);
+    const refOk = (ref: IconRef | null): boolean => {
+      if (!ref) return false;
+      if (ref.kind === "emoji") return ref.char.length > 0;
+      if (ref.kind === "lucide") return lucide.has(ref.id);
+      if (resolvable.has(ref.name)) return true;
+      if (
+        ref.name.startsWith("selfhosted/") &&
+        ref.name.endsWith("-light")
+      ) {
+        const base = ref.name.slice("selfhosted/".length, -"-light".length);
+        if (
+          selfhostLightRefs().has(base) &&
+          resolvable.has(`selfhosted/${base}`)
+        ) {
+          return true;
         }
       }
-      if (!ok) broken.push([path, entry.icon]);
+      return !!this.cdn.peek(ref.name);
+    };
+    for (const [path, entry] of [...entries, ...this.mapping.extEntries().map(([ext, value]): [string, typeof value] => [`*.${ext}`, value])]) {
+      if (!refOk(parseIconRef(entry.icon))) broken.push([path, entry.icon]);
+      if (entry.iconDark && !refOk(parseIconRef(entry.iconDark))) {
+        broken.push([`${path} (dunkel)`, entry.iconDark]);
+      }
     }
     const used = new Set<string>();
     for (const [, entry] of [...entries, ...this.mapping.extEntries()]) {

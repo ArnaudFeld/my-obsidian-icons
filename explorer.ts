@@ -1,6 +1,7 @@
-import { App, WorkspaceLeaf } from "obsidian";
+import { App, TFile, WorkspaceLeaf } from "obsidian";
 import { IconStore, isDarkTheme, parseIconRef, renderIconInto } from "./icons";
-import { MappingStore } from "./mapping";
+import { MappingEntry, MappingStore } from "./mapping";
+import { readFrontmatterIcon } from "./frontmatter";
 import { pickVariant } from "./tabs-titles";
 import { selfhostLightRefs } from "./cdn";
 
@@ -90,8 +91,18 @@ export class ExplorerIcons {
     this.observers.push(observer);
   }
 
+  /** Rangfolge wie in Tabs: Frontmatter, dann Mapping Pfad und Dateityp. */
+  private resolveForPath(path: string): MappingEntry | null {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (file instanceof TFile) {
+      const frontmatter = readFrontmatterIcon(this.app, file);
+      if (frontmatter) return frontmatter;
+    }
+    return this.mapping.resolve(path);
+  }
+
   private async renderRow(selfEl: HTMLElement, path: string): Promise<void> {
-    const raw = this.mapping.resolve(path);
+    const raw = this.resolveForPath(path);
     if (!raw) {
       selfEl
         .querySelector(":scope > .obsidian-icon-explorer")

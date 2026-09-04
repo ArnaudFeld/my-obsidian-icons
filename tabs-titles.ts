@@ -107,11 +107,11 @@ export class TabsTitles {
     const tabEl = (
       leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement }
     ).tabHeaderInnerIconEl;
-    if (tabEl) {
-      const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
-      if (!entry) this.restoreTab(leaf, tabEl);
-      else await this.paintTab(tabEl, entry);
-    }
+      if (tabEl) {
+        const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
+        if (!entry) this.restoreTab(leaf, tabEl);
+        else await this.paintTab(leaf, tabEl, entry);
+      }
     const titleEl = leaf.view.containerEl.querySelector(
       ".inline-title",
     ) as HTMLElement | null;
@@ -147,9 +147,17 @@ export class TabsTitles {
     return null;
   }
 
-  private async paintTab(el: HTMLElement, entry: ResolvedEntry): Promise<void> {
+  private async paintTab(
+    leaf: WorkspaceLeaf,
+    el: HTMLElement,
+    entry: ResolvedEntry,
+  ): Promise<void> {
     const ref = parseIconRef(entry.icon);
     if (!ref) {
+      return;
+    }
+    if (ref.kind === "lucide" && !this.store.lucideIds().includes(ref.id)) {
+      this.restoreTab(leaf, el);
       return;
     }
     el.empty();

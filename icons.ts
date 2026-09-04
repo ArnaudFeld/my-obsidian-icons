@@ -206,7 +206,7 @@ export function contrastOnBackground(color: string): number | null {
   let out: number | null = null;
   try {
     const probe = document.createElement("span");
-    probe.style.color = resolveColor(color);
+    probe.style.color = resolveColor(themeVar(color) ?? color);
     probe.style.background = "var(--background-primary)";
     document.body.appendChild(probe);
     const computed = getComputedStyle(probe);
