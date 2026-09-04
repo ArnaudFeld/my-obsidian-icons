@@ -175,6 +175,32 @@ check("Sanitizer entfernt Fremdkörper und Skript Adressen", () => {
   assert.ok(!out.includes("javascript:"));
 });
 
+check("Sanitizer ohne Anführungszeichen und Rahmen", () => {
+  const out = sanitizeSvg(
+    "<svg onload=alert(1)><img src=x onerror=alert(2)><iframe src=\"data:text/html,x\"></iframe></svg>",
+  );
+  assert.ok(!out.includes("onload"));
+  assert.ok(!out.includes("onerror"));
+  assert.ok(!out.toLowerCase().includes("iframe"));
+});
+
+check("Sanitizer kodierte Adressen und Stil Import", () => {
+  const out = sanitizeSvg(
+    '<svg><a xlink:href="&#106;avascript:alert(1)"><text>x</text></a><style>@import \'https://evil/x.css\';.a{fill:red}</style></svg>',
+  );
+  assert.ok(!out.includes("xlink:href"));
+  assert.ok(!out.includes("@import"));
+  assert.ok(out.includes(".a{fill:red}"));
+});
+
+check("Sanitizer behält Verlauf und interne Verweise", () => {
+  const svg =
+    '<svg><defs><linearGradient id="g"></linearGradient></defs><path fill="url(#g)"/><use href="#x"/></svg>';
+  const out = sanitizeSvg(svg);
+  assert.ok(out.includes('fill="url(#g)"'));
+  assert.ok(out.includes('href="#x"'));
+});
+
 console.log(`# ${count} Tests bestanden`);
 
 function testApp(): App {
@@ -238,8 +264,7 @@ await checkAsync("Alte große Endung heilt beim Laden", async () => {
   assert.deepEqual(store.getExt("md"), { icon: "server" });
 });
 
-await checkAsync("CDN Fehlschlag versucht neu nach TTL", async () => {
-  const cache = new CdnCache({ load: () => ({}), save: () => {} });
+await checkAsync("CDN Fehlschlag versucht neu nach TTL", async () => {  const cache = new CdnCache({ load: () => ({}), save: () => {} });
   const realNow = Date.now;
   try {
     Date.now = () => 1_000_000;
@@ -271,3 +296,31 @@ await checkAsync("CDN Fehlschlag versucht neu nach TTL", async () => {
 });
 
 console.log(`# ${count} Tests bestanden (mit async)`);
+
+await checkAsync("Cache aus data.json wird sanitiert", async () => {
+  const cache = new CdnCache({
+    load: () => ({
+      "devicon/x": '<svg onload=alert(1)><path fill="red"/></svg>',
+    }),
+    save: () => {},
+  });
+  const svg = cache.peek("devicon/x") ?? "";
+  assert.ok(!svg.includes("onload"));
+  assert.ok(svg.includes('fill="red"'));
+});
+
+await checkAsync("Proto Schlüssel landen nicht im Speicher", async () => {
+  const app = testApp();
+  const store = testStore(app);
+  await store.set("__proto__", { icon: "x" });
+  await store.setMany([["constructor", { icon: "x" }]]);
+  await store.setExt("__proto__", { icon: "x" });
+  assert.deepEqual(store.entries(), []);
+  assert.deepEqual(store.extEntries(), []);
+  assert.equal(
+    ({} as Record<string, unknown>)["icon" as string],
+    undefined,
+  );
+});
+
+console.log(`# ${count} Tests bestanden (final)`);

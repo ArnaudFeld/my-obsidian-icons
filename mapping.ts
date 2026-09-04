@@ -13,6 +13,11 @@ export type IconMapping = Record<string, string | MappingEntry>;
 /** Reservierter Schlüssel für Dateityp Regeln in derselben Datei. */
 export const EXT_KEY = "__ext__";
 
+/** Schlüssel, die den Speicher korrumpieren würden, immer abweisen. */
+export function isSafeKey(key: string): boolean {
+  return key !== "__proto__" && key !== "constructor" && key !== "prototype";
+}
+
 /** Endung normieren: klein, ohne Punkt, nur Buchstaben und Zahlen. */
 export function normalizeExt(raw: string): string | null {
   const ext = raw.trim().toLowerCase().replace(/^\.+/, "");
@@ -74,6 +79,9 @@ export class MappingStore {
       const parsed: unknown = JSON.parse(raw);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         this.data = parsed as IconMapping;
+        for (const key of Object.keys(this.data)) {
+          if (!isSafeKey(key)) delete this.data[key];
+        }
         this.normalizeExtKeys();
       }
     } catch {
@@ -139,6 +147,7 @@ export class MappingStore {
 
   async setExt(ext: string, entry: MappingEntry): Promise<void> {
     const key = normalizeExt(ext) ?? ext;
+    if (!isSafeKey(key)) return;
     const clean: MappingEntry = { icon: entry.icon };
     if (entry.color) clean.color = entry.color;
     if (entry.size) clean.size = entry.size;
@@ -156,6 +165,7 @@ export class MappingStore {
     if (norm && norm !== ext) keys.push(norm);
     let changed = false;
     for (const key of keys) {
+      if (!isSafeKey(key)) continue;
       if (key in section) {
         delete section[key];
         changed = true;
@@ -196,20 +206,23 @@ export class MappingStore {
   }
 
   async set(path: string, entry: MappingEntry): Promise<void> {
+    if (!isSafeKey(path)) return;
     this.data[path] = MappingStore.asStored(entry);
     await this.save();
   }
 
   /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
   async setMany(items: [string, MappingEntry][]): Promise<void> {
-    if (items.length === 0) return;
-    for (const [path, entry] of items) {
+    const clean = items.filter(([path]) => isSafeKey(path));
+    if (clean.length === 0) return;
+    for (const [path, entry] of clean) {
       this.data[path] = MappingStore.asStored(entry);
     }
     await this.save();
   }
 
   async remove(path: string): Promise<void> {
+    if (!isSafeKey(path)) return;
     if (path in this.data) {
       delete this.data[path];
       await this.save();
@@ -220,6 +233,7 @@ export class MappingStore {
   async removeMany(paths: string[]): Promise<void> {
     let changed = false;
     for (const path of paths) {
+      if (!isSafeKey(path)) continue;
       if (path in this.data) {
         delete this.data[path];
         changed = true;
@@ -230,7 +244,9 @@ export class MappingStore {
 
   /** Ordner Umbenennung zieht Kinder mit um. */
   migrateRename(oldPath: string, newPath: string, isFolder: boolean): boolean {
-    if (oldPath === EXT_KEY) return false;
+    if (oldPath === EXT_KEY || !isSafeKey(oldPath) || !isSafeKey(newPath)) {
+      return false;
+    }
     let changed = false;
     if (oldPath in this.data) {
       this.data[newPath] = this.data[oldPath];
@@ -252,7 +268,7 @@ export class MappingStore {
   }
 
   removePath(path: string, isFolder: boolean): boolean {
-    if (path === EXT_KEY) return false;
+    if (path === EXT_KEY || !isSafeKey(path)) return false;
     let changed = false;
     if (path in this.data) {
       delete this.data[path];

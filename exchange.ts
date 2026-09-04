@@ -9,6 +9,9 @@ export interface IconPackage {
   files: Record<string, string>;
 }
 
+/** Einzelne Import Datei, schützt vor Vault Bloat durch Riesen Pakete. */
+export const MAX_IMPORT_FILE_BYTES = 500_000;
+
 async function collectFiles(
   app: App,
   store: IconStore,
@@ -109,7 +112,12 @@ export function importIcons(
         let skipped = 0;
         for (const [raw, svg] of Object.entries(pkg.files)) {
           const name = normalizeSvgName(raw);
-          if (!name || typeof svg !== "string" || !svg.includes("<svg")) {
+          if (
+            !name ||
+            typeof svg !== "string" ||
+            !svg.includes("<svg") ||
+            svg.length > MAX_IMPORT_FILE_BYTES
+          ) {
             skipped++;
             continue;
           }

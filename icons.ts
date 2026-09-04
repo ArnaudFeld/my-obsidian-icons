@@ -112,12 +112,40 @@ export function parseSize(raw: string | undefined): string | undefined {
   return undefined;
 }
 
+/** Zahlen Entities auflösen, nur zur Prüfung von Attribut Werten. */
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&#x([0-9a-f]+);?/gi, (_m, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
+    .replace(/&#([0-9]+);?/g, (_m, dec: string) =>
+      String.fromCharCode(parseInt(dec, 10)),
+    );
+}
+
 /** Minimaler Schutz für eigene Vault Dateien, kein Ersatz für volle Sanitizer. */
 export function sanitizeSvg(svg: string): string {
   return svg
     .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
     .replace(/<foreignobject[\s\S]*?<\/foreignobject\s*>/gi, "")
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, "")
+    .replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "")
+    .replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
+    .replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css: string) => {
+      const clean = css
+        .replace(/@import[^;]+;?/gi, "")
+        .replace(/url\(\s*(?!#)([^)]*)\)/gi, "");
+      return `<style>${clean}</style>`;
+    })
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /\s(xlink:href|href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      (m, _attr, raw: string) => {
+        const value = decodeEntities(raw.replace(/^['"]|['"]$/g, ""))
+          .trim()
+          .toLowerCase();
+        return value.startsWith("#") ? m : "";
+      },
+    )
     .replace(/javascript\s*:/gi, "");
 }
 

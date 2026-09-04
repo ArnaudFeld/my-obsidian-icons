@@ -314,7 +314,7 @@ export class CdnCache {
       const data = this.persist.load();
       for (const [key, svg] of Object.entries(data)) {
         if (typeof svg === "string" && svg.includes("<svg")) {
-          this.add(key, svg);
+          this.add(key, sanitizeSvg(svg));
         }
       }
     } catch {
