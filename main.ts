@@ -132,8 +132,6 @@ function resolveDarkRef(
   return ref;
 }
 
-type SvgLoader = (ref: IconRef, size?: string) => void;
-
 class IconWidget extends WidgetType {
   constructor(
     private ref: IconRef,
@@ -605,14 +603,6 @@ export default class InlineSvgIconsPlugin extends Plugin {
       }
     }
     return refs;
-  }
-
-  /** Selbst Gehostet Auto Variante im dunklen Theme, sonst null. */
-  private autoDark(ref: IconRef): IconRef | null {
-    if (ref.kind !== "svg" || !ref.name.startsWith("selfhosted/")) return null;
-    const key = ref.name.slice("selfhosted/".length);
-    if (!selfhostLightRefs().has(key)) return null;
-    return { kind: "svg", name: `${ref.name}-light` };
   }
 
   private async applyIcons(paths: string[], result: PickerResult): Promise<void> {

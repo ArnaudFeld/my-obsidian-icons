@@ -360,7 +360,11 @@ export class CdnCache {
   }
 
   private add(name: string, svg: string): void {
-    while (
+    const old = this.cache.get(name);
+    if (old !== undefined) {
+      this.bytes -= old.length;
+      this.cache.delete(name);
+    }    while (
       (this.cache.size >= MAX_ENTRIES || this.bytes + svg.length > MAX_BYTES) &&
       this.cache.size > 0
     ) {

@@ -4463,6 +4463,11 @@ var CdnCache = class {
     return svg;
   }
   add(name, svg) {
+    const old = this.cache.get(name);
+    if (old !== void 0) {
+      this.bytes -= old.length;
+      this.cache.delete(name);
+    }
     while ((this.cache.size >= MAX_ENTRIES || this.bytes + svg.length > MAX_BYTES) && this.cache.size > 0) {
       const oldest = this.cache.keys().next();
       if (oldest.done)
@@ -6115,15 +6120,6 @@ var InlineSvgIconsPlugin = class extends import_obsidian9.Plugin {
       }
     }
     return refs;
-  }
-  /** Selbst Gehostet Auto Variante im dunklen Theme, sonst null. */
-  autoDark(ref) {
-    if (ref.kind !== "svg" || !ref.name.startsWith("selfhosted/"))
-      return null;
-    const key = ref.name.slice("selfhosted/".length);
-    if (!selfhostLightRefs().has(key))
-      return null;
-    return { kind: "svg", name: `${ref.name}-light` };
   }
   async applyIcons(paths, result) {
     const entry = {
