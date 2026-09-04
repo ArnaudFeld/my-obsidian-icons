@@ -444,6 +444,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
 
   onunload(): void {
     this.cdn?.flush();
+    void this.mapping?.flush();
     this.explorer?.stop();
     this.chrome?.stop();
   }
@@ -490,16 +491,20 @@ export default class InlineSvgIconsPlugin extends Plugin {
   openExtPicker(ext: string, initial: PickerResult | null, onSaved?: () => void): void {
     this.openIconPicker(initial, (result) => {
       void (async () => {
-        await this.mapping.setExt(ext, {
-          icon: result.icon,
-          ...(result.color ? { color: result.color } : {}),
-          ...(result.size ? { size: result.size } : {}),
-          ...(result.iconDark ? { iconDark: result.iconDark } : {}),
-        });
-        this.touchRecent([result.icon]);
-        this.explorer.refreshSoon();
-        this.chrome.refreshSoon();
-        onSaved?.();
+        try {
+          await this.mapping.setExt(ext, {
+            icon: result.icon,
+            ...(result.color ? { color: result.color } : {}),
+            ...(result.size ? { size: result.size } : {}),
+            ...(result.iconDark ? { iconDark: result.iconDark } : {}),
+          });
+          this.touchRecent([result.icon]);
+          this.explorer.refreshSoon();
+          this.chrome.refreshSoon();
+          onSaved?.();
+        } catch {
+          new Notice("Icon konnte nicht gespeichert werden");
+        }
       })();
     });
   }
@@ -519,17 +524,38 @@ export default class InlineSvgIconsPlugin extends Plugin {
     });
   }
 
-  /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog. */
+  /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog.
+   * Nur Namespaces mit vollständigem Stand werden beurteilt, der Rest bleibt.
+   */
   private async pruneMeta(cdnRefs: string[]): Promise<void> {
-    const known = new Set([
-      ...(await this.icons.listSvgNames()),
-      ...cdnRefs,
-      ...this.icons.lucideIds().map((id) => `lucide:${id}`),
-    ]);
+    const local = new Set(await this.icons.listSvgNames());
+    let lucide: Set<string> | null = null;
+    try {
+      const ids = this.icons.lucideIds();
+      if (ids.length > 0) lucide = new Set(ids.map((id) => `lucide:${id}`));
+    } catch {
+      lucide = null;
+    }
+    const cdn =
+      this.settings.cdnEnabled || this.settings.selfhostEnabled
+        ? new Set(cdnRefs)
+        : null;
+    const known = (ref: string): boolean => {
+      if (local.has(ref)) return true;
+      if (ref.startsWith("lucide:")) return lucide !== null && lucide.has(ref);
+      if (ref.includes("/")) return cdn !== null && cdn.has(ref);
+      return false;
+    };
+    const judgeable = (ref: string): boolean => {
+      if (local.has(ref)) return true;
+      if (ref.startsWith("lucide:")) return lucide !== null;
+      if (ref.includes("/")) return cdn !== null;
+      return true;
+    };
     let changed = false;
     const keep = (list: string[]): string[] =>
       list.filter((ref) => {
-        if (known.has(ref)) return true;
+        if (known(ref) || !judgeable(ref)) return true;
         changed = true;
         return false;
       });
@@ -574,6 +600,8 @@ export default class InlineSvgIconsPlugin extends Plugin {
           this.toggleFavorite(ref);
         },
       }).open();
+    }).catch(() => {
+      new Notice("Icon Auswahl konnte nicht geöffnet werden");
     });
   }
 
@@ -599,7 +627,12 @@ export default class InlineSvgIconsPlugin extends Plugin {
       ...(result.size ? { size: result.size } : {}),
       ...(result.iconDark ? { iconDark: result.iconDark } : {}),
     };
-    await this.mapping.setMany(paths.map((path) => [path, entry] as [string, typeof entry]));
+    try {
+      await this.mapping.setMany(paths.map((path) => [path, entry] as [string, typeof entry]));
+    } catch {
+      new Notice("Icons konnten nicht gespeichert werden");
+      return;
+    }
     this.touchRecent([result.icon]);
     this.explorer.refreshSoon();
     this.chrome.refreshSoon();
@@ -627,7 +660,12 @@ export default class InlineSvgIconsPlugin extends Plugin {
   }
 
   private async removeIcons(paths: string[]): Promise<void> {
-    await this.mapping.removeMany(paths);
+    try {
+      await this.mapping.removeMany(paths);
+    } catch {
+      new Notice("Icons konnten nicht entfernt werden");
+      return;
+    }
     this.explorer.refreshSoon();
     this.chrome.refreshSoon();
   }
@@ -777,7 +815,10 @@ export default class InlineSvgIconsPlugin extends Plugin {
           return true;
         }
       }
-      return !!this.cdn.peek(ref.name);
+      return (
+        (this.settings.cdnEnabled || this.settings.selfhostEnabled) &&
+        !!this.cdn.peek(ref.name)
+      );
     };
     for (const [path, entry] of [...entries, ...this.mapping.extEntries().map(([ext, value]): [string, typeof value] => [`*.${ext}`, value])]) {
       if (!refOk(parseIconRef(entry.icon))) broken.push([path, entry.icon]);
@@ -872,7 +913,12 @@ export default class InlineSvgIconsPlugin extends Plugin {
   }
 
   async loadAll(): Promise<void> {
-    const raw: unknown = await this.loadData();
+    let raw: unknown = null;
+    try {
+      raw = await this.loadData();
+    } catch {
+      console.warn("[inline-svg-icons] data.json ungültig, Standard geladen");
+    }
     if (this.isEnvelope(raw)) {
       this.settings = { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) };
       this.cdnData = raw.cdnCache ?? {};

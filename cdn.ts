@@ -313,9 +313,14 @@ export class CdnCache {
     try {
       const data = this.persist.load();
       for (const [key, svg] of Object.entries(data)) {
-        if (typeof svg === "string" && svg.includes("<svg")) {
-          this.add(key, sanitizeSvg(svg));
+        if (typeof svg !== "string" || !svg.includes("<svg")) continue;
+        if (
+          this.cache.size >= MAX_ENTRIES ||
+          this.bytes + svg.length > MAX_BYTES
+        ) {
+          break;
         }
+        this.add(key, sanitizeSvg(svg));
       }
     } catch {
       /* leer starten */

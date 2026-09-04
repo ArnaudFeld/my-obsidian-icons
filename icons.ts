@@ -6,7 +6,11 @@ export type IconRef =
   | { kind: "emoji"; char: string };
 
 export function normalizeFolder(raw: string): string {
-  return raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  return raw
+    .trim()
+    .split("/")
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
 }
 
 /** Dunkles Theme aktiv, ein Testpunkt für alle Stellen. */
@@ -127,7 +131,9 @@ function decodeEntities(value: string): string {
 export function sanitizeSvg(svg: string): string {
   return svg
     .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
-    .replace(/<foreignobject[\s\S]*?<\/foreignobject\s*>/gi, "")
+    .replace(/<foreignobject\b[^>]*\/>/gi, "")
+    .replace(/<foreignobject\b[\s\S]*?<\/foreignobject\s*>/gi, "")
+    .replace(/<foreignobject\b[\s\S]*$/gi, "")
     .replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "")
     .replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
     .replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css: string) => {
@@ -136,14 +142,16 @@ export function sanitizeSvg(svg: string): string {
         .replace(/url\(\s*(?!#)([^)]*)\)/gi, "");
       return `<style>${clean}</style>`;
     })
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/[\s/'"]on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(
-      /\s(xlink:href|href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
-      (m, _attr, raw: string) => {
+      /[\s/'"](xlink:href|href|src|to)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      (m, attr: string, raw: string) => {
         const value = decodeEntities(raw.replace(/^['"]|['"]$/g, ""))
           .trim()
           .toLowerCase();
-        return value.startsWith("#") ? m : "";
+        if (value.startsWith("#")) return m;
+        if (attr.toLowerCase() === "to" && !value.includes(":")) return m;
+        return "";
       },
     )
     .replace(/javascript\s*:/gi, "");

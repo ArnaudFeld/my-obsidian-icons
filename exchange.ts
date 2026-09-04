@@ -11,6 +11,9 @@ export interface IconPackage {
 
 /** Einzelne Import Datei, schützt vor Vault Bloat durch Riesen Pakete. */
 export const MAX_IMPORT_FILE_BYTES = 500_000;
+/** Gesamt Paket, schützt vor vielen fast großen Dateien. */
+export const MAX_IMPORT_TOTAL_BYTES = 10_000_000;
+export const MAX_IMPORT_FILES = 500;
 
 async function collectFiles(
   app: App,
@@ -110,13 +113,16 @@ export function importIcons(
         const folder = getFolder().trim().replace(/^\/+/, "").replace(/\/+$/, "");
         let written = 0;
         let skipped = 0;
+        let writtenBytes = 0;
         for (const [raw, svg] of Object.entries(pkg.files)) {
           const name = normalizeSvgName(raw);
           if (
             !name ||
             typeof svg !== "string" ||
             !svg.includes("<svg") ||
-            svg.length > MAX_IMPORT_FILE_BYTES
+            svg.length > MAX_IMPORT_FILE_BYTES ||
+            written >= MAX_IMPORT_FILES ||
+            writtenBytes + svg.length > MAX_IMPORT_TOTAL_BYTES
           ) {
             skipped++;
             continue;
@@ -135,10 +141,12 @@ export function importIcons(
           }
           await app.vault.create(path, sanitizeSvg(svg));
           written++;
+          writtenBytes += svg.length;
         }
         let entries = 0;
         for (const [path, value] of Object.entries(pkg.mapping)) {
           if (path === EXT_KEY) continue;
+          if (path.includes("..") || path.startsWith("/")) continue;
           const entry = normalizeEntry(value as string | MappingEntry);
           if (!entry) continue;
           await mapping.set(path, entry);

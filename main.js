@@ -30,7 +30,7 @@ var import_view = require("@codemirror/view");
 // icons.ts
 var import_obsidian = require("obsidian");
 function normalizeFolder(raw) {
-  return raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  return raw.trim().split("/").filter((part) => part && part !== "." && part !== "..").join("/");
 }
 function isDarkTheme() {
   return document.body.classList.contains("theme-dark");
@@ -135,14 +135,18 @@ function decodeEntities(value) {
   );
 }
 function sanitizeSvg(svg) {
-  return svg.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<foreignobject[\s\S]*?<\/foreignobject\s*>/gi, "").replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "").replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "").replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css) => {
+  return svg.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<foreignobject\b[^>]*\/>/gi, "").replace(/<foreignobject\b[\s\S]*?<\/foreignobject\s*>/gi, "").replace(/<foreignobject\b[\s\S]*$/gi, "").replace(/<(iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "").replace(/<(iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "").replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, (_m, css) => {
     const clean = css.replace(/@import[^;]+;?/gi, "").replace(/url\(\s*(?!#)([^)]*)\)/gi, "");
     return `<style>${clean}</style>`;
-  }).replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(
-    /\s(xlink:href|href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
-    (m, _attr, raw) => {
+  }).replace(/[\s/'"]on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(
+    /[\s/'"](xlink:href|href|src|to)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+    (m, attr, raw) => {
       const value = decodeEntities(raw.replace(/^['"]|['"]$/g, "")).trim().toLowerCase();
-      return value.startsWith("#") ? m : "";
+      if (value.startsWith("#"))
+        return m;
+      if (attr.toLowerCase() === "to" && !value.includes(":"))
+        return m;
+      return "";
     }
   ).replace(/javascript\s*:/gi, "");
 }
@@ -386,8 +390,17 @@ var MappingStore = class _MappingStore {
     return path === this.mappingPath();
   }
   async load() {
-    await this.saveQueue.catch(() => {
-    });
+    const run = this.saveQueue.then(
+      () => this.readFile(),
+      () => this.readFile()
+    );
+    this.saveQueue = run.then(
+      () => void 0,
+      () => void 0
+    );
+    await run;
+  }
+  async readFile() {
     try {
       const file = this.app.vault.getAbstractFileByPath(this.mappingPath());
       if (!(file instanceof import_obsidian2.TFile))
@@ -481,15 +494,12 @@ var MappingStore = class _MappingStore {
   }
   async removeExt(ext) {
     const section = this.extSection();
-    const keys = [ext];
-    const norm = normalizeExt(ext);
-    if (norm && norm !== ext)
-      keys.push(norm);
+    const target = ext.replace(/^\.+/, "").toLowerCase();
     let changed = false;
-    for (const key of keys) {
+    for (const key of Object.keys(section)) {
       if (!isSafeKey(key))
         continue;
-      if (key in section) {
+      if (key.replace(/^\.+/, "").toLowerCase() === target) {
         delete section[key];
         changed = true;
       }
@@ -623,6 +633,10 @@ var MappingStore = class _MappingStore {
       () => void 0
     );
     return run;
+  }
+  /** Offene Saves abwarten, Best Effort beim Entladen. */
+  async flush() {
+    await this.saveQueue;
   }
   async writeFile() {
     const path = this.mappingPath();
@@ -4521,9 +4535,12 @@ var CdnCache = class {
     try {
       const data = this.persist.load();
       for (const [key, svg] of Object.entries(data)) {
-        if (typeof svg === "string" && svg.includes("<svg")) {
-          this.add(key, sanitizeSvg(svg));
+        if (typeof svg !== "string" || !svg.includes("<svg"))
+          continue;
+        if (this.cache.size >= MAX_ENTRIES || this.bytes + svg.length > MAX_BYTES) {
+          break;
         }
+        this.add(key, sanitizeSvg(svg));
       }
     } catch (e) {
     }
@@ -5661,6 +5678,8 @@ var FrontmatterSuggest = class extends import_obsidian8.EditorSuggest {
 // exchange.ts
 var import_obsidian9 = require("obsidian");
 var MAX_IMPORT_FILE_BYTES = 5e5;
+var MAX_IMPORT_TOTAL_BYTES = 1e7;
+var MAX_IMPORT_FILES = 500;
 async function collectFiles(app, store, refs) {
   const files = {};
   for (const raw of refs) {
@@ -5732,9 +5751,10 @@ function importIcons(app, store, mapping, getFolder, onDone) {
         const folder = getFolder().trim().replace(/^\/+/, "").replace(/\/+$/, "");
         let written = 0;
         let skipped = 0;
+        let writtenBytes = 0;
         for (const [raw, svg] of Object.entries(pkg.files)) {
           const name = normalizeSvgName(raw);
-          if (!name || typeof svg !== "string" || !svg.includes("<svg") || svg.length > MAX_IMPORT_FILE_BYTES) {
+          if (!name || typeof svg !== "string" || !svg.includes("<svg") || svg.length > MAX_IMPORT_FILE_BYTES || written >= MAX_IMPORT_FILES || writtenBytes + svg.length > MAX_IMPORT_TOTAL_BYTES) {
             skipped++;
             continue;
           }
@@ -5752,10 +5772,13 @@ function importIcons(app, store, mapping, getFolder, onDone) {
           }
           await app.vault.create(path, sanitizeSvg(svg));
           written++;
+          writtenBytes += svg.length;
         }
         let entries = 0;
         for (const [path, value] of Object.entries(pkg.mapping)) {
           if (path === EXT_KEY)
+            continue;
+          if (path.includes("..") || path.startsWith("/"))
             continue;
           const entry = normalizeEntry(value);
           if (!entry)
@@ -6102,10 +6125,11 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.addSettingTab(new InlineSvgIconsSettingTab(this.app, this));
   }
   onunload() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     (_a = this.cdn) == null ? void 0 : _a.flush();
-    (_b = this.explorer) == null ? void 0 : _b.stop();
-    (_c = this.chrome) == null ? void 0 : _c.stop();
+    void ((_b = this.mapping) == null ? void 0 : _b.flush());
+    (_c = this.explorer) == null ? void 0 : _c.stop();
+    (_d = this.chrome) == null ? void 0 : _d.stop();
   }
   warnOnConflicts() {
     var _a;
@@ -6146,16 +6170,20 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
   openExtPicker(ext, initial, onSaved) {
     this.openIconPicker(initial, (result) => {
       void (async () => {
-        await this.mapping.setExt(ext, {
-          icon: result.icon,
-          ...result.color ? { color: result.color } : {},
-          ...result.size ? { size: result.size } : {},
-          ...result.iconDark ? { iconDark: result.iconDark } : {}
-        });
-        this.touchRecent([result.icon]);
-        this.explorer.refreshSoon();
-        this.chrome.refreshSoon();
-        onSaved == null ? void 0 : onSaved();
+        try {
+          await this.mapping.setExt(ext, {
+            icon: result.icon,
+            ...result.color ? { color: result.color } : {},
+            ...result.size ? { size: result.size } : {},
+            ...result.iconDark ? { iconDark: result.iconDark } : {}
+          });
+          this.touchRecent([result.icon]);
+          this.explorer.refreshSoon();
+          this.chrome.refreshSoon();
+          onSaved == null ? void 0 : onSaved();
+        } catch (e) {
+          new import_obsidian10.Notice("Icon konnte nicht gespeichert werden");
+        }
       })();
     });
   }
@@ -6171,16 +6199,41 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       void this.applyIcons(paths, result);
     });
   }
-  /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog. */
+  /** Tote Favoriten und Zuletzt Einträge entfernen, einmal pro Dialog.
+   * Nur Namespaces mit vollständigem Stand werden beurteilt, der Rest bleibt.
+   */
   async pruneMeta(cdnRefs) {
-    const known = /* @__PURE__ */ new Set([
-      ...await this.icons.listSvgNames(),
-      ...cdnRefs,
-      ...this.icons.lucideIds().map((id) => `lucide:${id}`)
-    ]);
+    const local = new Set(await this.icons.listSvgNames());
+    let lucide = null;
+    try {
+      const ids = this.icons.lucideIds();
+      if (ids.length > 0)
+        lucide = new Set(ids.map((id) => `lucide:${id}`));
+    } catch (e) {
+      lucide = null;
+    }
+    const cdn = this.settings.cdnEnabled || this.settings.selfhostEnabled ? new Set(cdnRefs) : null;
+    const known = (ref) => {
+      if (local.has(ref))
+        return true;
+      if (ref.startsWith("lucide:"))
+        return lucide !== null && lucide.has(ref);
+      if (ref.includes("/"))
+        return cdn !== null && cdn.has(ref);
+      return false;
+    };
+    const judgeable = (ref) => {
+      if (local.has(ref))
+        return true;
+      if (ref.startsWith("lucide:"))
+        return lucide !== null;
+      if (ref.includes("/"))
+        return cdn !== null;
+      return true;
+    };
     let changed = false;
     const keep = (list) => list.filter((ref) => {
-      if (known.has(ref))
+      if (known(ref) || !judgeable(ref))
         return true;
       changed = true;
       return false;
@@ -6226,6 +6279,8 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
           this.toggleFavorite(ref);
         }
       }).open();
+    }).catch(() => {
+      new import_obsidian10.Notice("Icon Auswahl konnte nicht ge\xF6ffnet werden");
     });
   }
   /** Katalog Referenzen, die nur per CDN verfügbar sind, nicht als Datei. */
@@ -6250,7 +6305,12 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       ...result.size ? { size: result.size } : {},
       ...result.iconDark ? { iconDark: result.iconDark } : {}
     };
-    await this.mapping.setMany(paths.map((path) => [path, entry]));
+    try {
+      await this.mapping.setMany(paths.map((path) => [path, entry]));
+    } catch (e) {
+      new import_obsidian10.Notice("Icons konnten nicht gespeichert werden");
+      return;
+    }
     this.touchRecent([result.icon]);
     this.explorer.refreshSoon();
     this.chrome.refreshSoon();
@@ -6277,7 +6337,12 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     return index < 0;
   }
   async removeIcons(paths) {
-    await this.mapping.removeMany(paths);
+    try {
+      await this.mapping.removeMany(paths);
+    } catch (e) {
+      new import_obsidian10.Notice("Icons konnten nicht entfernt werden");
+      return;
+    }
     this.explorer.refreshSoon();
     this.chrome.refreshSoon();
   }
@@ -6413,7 +6478,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
           return true;
         }
       }
-      return !!this.cdn.peek(ref.name);
+      return (this.settings.cdnEnabled || this.settings.selfhostEnabled) && !!this.cdn.peek(ref.name);
     };
     for (const [path, entry] of [...entries, ...this.mapping.extEntries().map(([ext, value]) => [`*.${ext}`, value])]) {
       if (!refOk(parseIconRef(entry.icon)))
@@ -6508,7 +6573,12 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
   }
   async loadAll() {
     var _a, _b;
-    const raw = await this.loadData();
+    let raw = null;
+    try {
+      raw = await this.loadData();
+    } catch (e) {
+      console.warn("[inline-svg-icons] data.json ung\xFCltig, Standard geladen");
+    }
     if (this.isEnvelope(raw)) {
       this.settings = { ...DEFAULT_SETTINGS, ...(_a = raw.settings) != null ? _a : {} };
       this.cdnData = (_b = raw.cdnCache) != null ? _b : {};

@@ -71,7 +71,18 @@ export class MappingStore {
   }
 
   async load(): Promise<void> {
-    await this.saveQueue.catch(() => {});
+    const run = this.saveQueue.then(
+      () => this.readFile(),
+      () => this.readFile(),
+    );
+    this.saveQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    await run;
+  }
+
+  private async readFile(): Promise<void> {
     try {
       const file = this.app.vault.getAbstractFileByPath(this.mappingPath());
       if (!(file instanceof TFile)) return;
@@ -160,13 +171,11 @@ export class MappingStore {
 
   async removeExt(ext: string): Promise<void> {
     const section = this.extSection();
-    const keys = [ext];
-    const norm = normalizeExt(ext);
-    if (norm && norm !== ext) keys.push(norm);
+    const target = ext.replace(/^\.+/, "").toLowerCase();
     let changed = false;
-    for (const key of keys) {
+    for (const key of Object.keys(section)) {
       if (!isSafeKey(key)) continue;
-      if (key in section) {
+      if (key.replace(/^\.+/, "").toLowerCase() === target) {
         delete section[key];
         changed = true;
       }
@@ -294,6 +303,11 @@ export class MappingStore {
       () => undefined,
     );
     return run;
+  }
+
+  /** Offene Saves abwarten, Best Effort beim Entladen. */
+  async flush(): Promise<void> {
+    await this.saveQueue;
   }
 
   private async writeFile(): Promise<void> {

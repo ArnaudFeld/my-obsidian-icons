@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  normalizeFolder,
   normalizeSvgName,
   parseIconRef,
   parseSize,
@@ -201,6 +202,35 @@ check("Sanitizer behält Verlauf und interne Verweise", () => {
   assert.ok(out.includes('href="#x"'));
 });
 
+check("Sanitizer Trenner Schrägstrich und Anführungszeichen", () => {
+  const out = sanitizeSvg(
+    '<svg/onload=alert(1)><animate/onbegin=alert(2) attributeName=x dur=1s/><a href="#"onload=alert(3)><text>k</text></a></svg>',
+  );
+  assert.ok(!out.includes("onload"));
+  assert.ok(!out.includes("onbegin"));
+  assert.ok(out.includes("<text>k</text>"));
+});
+
+check("Sanitizer offenes Fremdobjekt und to Schema", () => {
+  const out = sanitizeSvg(
+    '<svg><foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><img src=x onerror=alert(1)>',
+  );
+  assert.ok(!out.toLowerCase().includes("foreignobject"));
+  assert.ok(!out.includes("onerror"));
+  const anim = sanitizeSvg(
+    '<svg><animate attributeName="x" to="100"/><set attributeName="href" to="javascript:alert(1)"/></svg>',
+  );
+  assert.ok(anim.includes('to="100"'));
+  assert.ok(!anim.includes("javascript:"));
+});
+
+check("Ordner Norm wirft Punkte raus", () => {
+  assert.equal(normalizeFolder("_assets/icons"), "_assets/icons");
+  assert.equal(normalizeFolder("/a//b/"), "a/b");
+  assert.equal(normalizeFolder("../../x"), "x");
+  assert.equal(normalizeFolder("a/./b"), "a/b");
+});
+
 console.log(`# ${count} Tests bestanden`);
 
 function testApp(): App {
@@ -264,6 +294,18 @@ await checkAsync("Alte große Endung heilt beim Laden", async () => {
   assert.deepEqual(store.getExt("md"), { icon: "server" });
 });
 
+await checkAsync("Entfernen findet jede Schreibweise", async () => {
+  const app = testApp();
+  app.vault.files.set(
+    "_assets/icon-mapping.json",
+    JSON.stringify({ __ext__: { MD: "server" } }),
+  );
+  const store = testStore(app);
+  await store.load();
+  await store.removeExt(".MD");
+  assert.equal(store.getExt("md"), null);
+});
+
 await checkAsync("CDN Fehlschlag versucht neu nach TTL", async () => {  const cache = new CdnCache({ load: () => ({}), save: () => {} });
   const realNow = Date.now;
   try {
@@ -307,6 +349,15 @@ await checkAsync("Cache aus data.json wird sanitiert", async () => {
   const svg = cache.peek("devicon/x") ?? "";
   assert.ok(!svg.includes("onload"));
   assert.ok(svg.includes('fill="red"'));
+});
+
+await checkAsync("Cache aus data.json bleibt gedeckelt", async () => {
+  const data: Record<string, string> = {};
+  for (let i = 0; i < 200; i++) {
+    data[`devicon/n${i}`] = "<svg><path/></svg>";
+  }
+  const cache = new CdnCache({ load: () => data, save: () => {} });
+  assert.ok(cache.size <= 150);
 });
 
 await checkAsync("Proto Schlüssel landen nicht im Speicher", async () => {
