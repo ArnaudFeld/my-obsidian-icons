@@ -22,6 +22,7 @@ import type { Extension } from "@codemirror/state";
 import {
   IconRef,
   IconStore,
+  isDarkTheme,
   normalizeFolder,
   parseIconRef,
   parseSize,
@@ -32,7 +33,7 @@ import { MappingStore, normalizeExt } from "./mapping";
 import { ExplorerIcons } from "./explorer";
 import { IconPickerModal, PickerResult } from "./picker";
 import { IconGalleryModal, IconCheckModal } from "./gallery";
-import { IconSuggest, FrontmatterSuggest } from "./suggest";
+import { IconSuggest, FrontmatterSuggest, collectCatalogRefs } from "./suggest";
 import { TabsTitles } from "./tabs-titles";
 import { exportIcons, importIcons } from "./exchange";
 
@@ -105,10 +106,6 @@ function parseTagParams(
     }
   }
   return { size, color, darkIcon };
-}
-
-function isDarkTheme(): boolean {
-  return document.body.classList.contains("theme-dark");
 }
 
 /** Explizite Dunkel Variante, sonst Self-Hosted Auto Light, sonst wie hell. */
@@ -564,45 +561,15 @@ export default class InlineSvgIconsPlugin extends Plugin {
   private async cdnRefs(): Promise<string[]> {
     if (!this.settings.cdnEnabled && !this.settings.selfhostEnabled) return [];
     const local = new Set(await this.icons.listSvgNames());
-    const refs: string[] = [];
     try {
-      const catalogs = await loadCatalogs();
-      if (this.settings.cdnEnabled) {
-        for (const name of catalogs.deviconNames) {
-          const ref = `devicon/${name}`;
-          if (!local.has(ref)) refs.push(ref);
-        }
-        for (const slug of catalogs.simpleSlugs) {
-          const ref = `simple/${slug}`;
-          if (!local.has(ref)) refs.push(ref);
-        }
-      }
-      if (this.settings.selfhostEnabled) {
-        for (const ref of catalogs.selfhost.keys()) {
-          const full = `selfhosted/${ref}`;
-          if (!local.has(full)) refs.push(full);
-        }
-      }
+      const catalog = await collectCatalogRefs(this.icons, {
+        cdn: this.settings.cdnEnabled,
+        selfhost: this.settings.selfhostEnabled,
+      });
+      return catalog.refs.filter((ref) => ref.includes("/") && !local.has(ref));
     } catch {
-      if (this.settings.cdnEnabled) {
-        for (const name of DEVICON_NAMES) {
-          const ref = `devicon/${name}`;
-          if (!local.has(ref)) refs.push(ref);
-        }
-        let slugs = SIMPLE_CDN_SLUGS;
-        try {
-          const live = await fetchSimpleSlugs();
-          if (live.length > 0) slugs = live;
-        } catch {
-          /* kuratiert */
-        }
-        for (const slug of slugs) {
-          const ref = `simple/${slug}`;
-          if (!local.has(ref)) refs.push(ref);
-        }
-      }
+      return [];
     }
-    return refs;
   }
 
   private async applyIcons(paths: string[], result: PickerResult): Promise<void> {

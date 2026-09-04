@@ -1,5 +1,5 @@
 import { App, TFile, WorkspaceLeaf, setIcon } from "obsidian";
-import { IconStore, parseIconRef, renderIconInto } from "./icons";
+import { IconStore, isDarkTheme, parseIconRef, renderIconInto } from "./icons";
 import { MappingEntry, MappingStore } from "./mapping";
 import { FrontmatterIcon, readFrontmatterIcon } from "./frontmatter";
 import { selfhostLightRefs } from "./cdn";
@@ -41,9 +41,8 @@ export function pickVariant(
   return out;
 }
 
-function isDarkTheme(): boolean {
-  return document.body.classList.contains("theme-dark");
-}
+/** Gleichzeitige Tabs beim Nachmalen, begrenzt Netz und DOM Last. */
+const REFRESH_CONCURRENCY = 6;
 
 function hasSelfhostLight(ref: string): boolean {
   return selfhostLightRefs().has(ref);
@@ -89,24 +88,37 @@ export class TabsTitles {
   async refresh(): Promise<void> {
     const opts = this.getOpts();
     const dark = isDarkTheme();
-    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const path = this.leafPath(leaf);
-      const tabEl = (
-        leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement }
-      ).tabHeaderInnerIconEl;
-      if (tabEl) {
-        const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
-        if (!entry) this.restoreTab(leaf, tabEl);
-        else await this.paintTab(tabEl, entry);
-      }
-      const titleEl = leaf.view.containerEl.querySelector(
-        ".inline-title",
-      ) as HTMLElement | null;
-      if (titleEl) {
-        titleEl.querySelector(":scope > .obsidian-icon-title")?.remove();
-        const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
-        if (entry) await this.paintTitle(titleEl, entry);
-      }
+    const leaves = this.app.workspace.getLeavesOfType("markdown");
+    for (let i = 0; i < leaves.length; i += REFRESH_CONCURRENCY) {
+      await Promise.all(
+        leaves
+          .slice(i, i + REFRESH_CONCURRENCY)
+          .map((leaf) => this.refreshLeaf(leaf, opts, dark)),
+      );
+    }
+  }
+
+  private async refreshLeaf(
+    leaf: WorkspaceLeaf,
+    opts: { tabs: boolean; title: boolean; autoLight: boolean },
+    dark: boolean,
+  ): Promise<void> {
+    const path = this.leafPath(leaf);
+    const tabEl = (
+      leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement }
+    ).tabHeaderInnerIconEl;
+    if (tabEl) {
+      const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
+      if (!entry) this.restoreTab(leaf, tabEl);
+      else await this.paintTab(tabEl, entry);
+    }
+    const titleEl = leaf.view.containerEl.querySelector(
+      ".inline-title",
+    ) as HTMLElement | null;
+    if (titleEl) {
+      titleEl.querySelector(":scope > .obsidian-icon-title")?.remove();
+      const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
+      if (entry) await this.paintTitle(titleEl, entry);
     }
   }
 

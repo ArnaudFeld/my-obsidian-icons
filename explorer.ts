@@ -1,5 +1,5 @@
 import { App, WorkspaceLeaf } from "obsidian";
-import { IconStore, parseIconRef, renderIconInto } from "./icons";
+import { IconStore, isDarkTheme, parseIconRef, renderIconInto } from "./icons";
 import { MappingStore } from "./mapping";
 import { pickVariant } from "./tabs-titles";
 import { selfhostLightRefs } from "./cdn";
@@ -8,6 +8,9 @@ function activeDoc(): Document {
   const anyWindow = window as unknown as { activeDocument?: Document };
   return anyWindow.activeDocument ?? document;
 }
+
+/** Gleichzeitige Zeilen beim Nachmalen, begrenzt Netz und DOM Last. */
+const REFRESH_CONCURRENCY = 6;
 
 /**
  * Explorer Icons per MutationObserver, nach dem Muster von Iconic und
@@ -55,13 +58,19 @@ export class ExplorerIcons {
     this.app.workspace
       .getLeavesOfType("file-explorer")
       .forEach((leaf) => this.watchLeaf(leaf));
-    const rows = activeDoc().querySelectorAll(
-      ".nav-files-container .tree-item-self[data-path]",
+    const rows = Array.from(
+      activeDoc().querySelectorAll(
+        ".nav-files-container .tree-item-self[data-path]",
+      ),
     );
-    for (const row of Array.from(rows)) {
-      const selfEl = row as HTMLElement;
-      const path = selfEl.dataset.path;
-      if (path) await this.renderRow(selfEl, path);
+    for (let i = 0; i < rows.length; i += REFRESH_CONCURRENCY) {
+      await Promise.all(
+        rows.slice(i, i + REFRESH_CONCURRENCY).map((row) => {
+          const selfEl = row as HTMLElement;
+          const path = selfEl.dataset.path;
+          return path ? this.renderRow(selfEl, path) : Promise.resolve();
+        }),
+      );
     }
   }
 
@@ -89,7 +98,7 @@ export class ExplorerIcons {
         ?.remove();
       return;
     }
-    const dark = document.body.classList.contains("theme-dark");
+    const dark = isDarkTheme();
     const entry = pickVariant(
       raw,
       dark,

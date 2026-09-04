@@ -9,6 +9,11 @@ export function normalizeFolder(raw: string): string {
   return raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 }
 
+/** Dunkles Theme aktiv, ein Testpunkt für alle Stellen. */
+export function isDarkTheme(): boolean {
+  return document.body.classList.contains("theme-dark");
+}
+
 /** Vault SVG Pfad ohne Endung, z.B. "devicon/proxmox". Null bei Pfad Tricks. */
 export function normalizeSvgName(raw: string): string | null {
   let name = raw.trim().replace(/^\/+/, "");
@@ -162,8 +167,14 @@ function luminance(rgb: string): number | null {
 /**
  * Kontrast der Farbe zum Theme Hintergrund als Verhältnis, z.B. 4.5.
  * Null wenn nicht bestimmbar. Für die Warnung im Picker.
+ * Ergebnisse je Farbe zwischengespeichert, eine DOM Sonde pro Farbe reicht.
  */
+const contrastCache = new Map<string, number | null>();
+
 export function contrastOnBackground(color: string): number | null {
+  const key = color.trim().toLowerCase();
+  if (contrastCache.has(key)) return contrastCache.get(key) ?? null;
+  let out: number | null = null;
   try {
     const probe = document.createElement("span");
     probe.style.color = resolveColor(color);
@@ -173,12 +184,17 @@ export function contrastOnBackground(color: string): number | null {
     const fg = luminance(computed.color);
     const bg = luminance(computed.backgroundColor);
     probe.remove();
-    if (fg === null || bg === null) return null;
+    if (fg === null || bg === null) {
+      contrastCache.set(key, null);
+      return null;
+    }
     const [hi, lo] = fg >= bg ? [fg, bg] : [bg, fg];
-    return (hi + 0.05) / (lo + 0.05);
+    out = (hi + 0.05) / (lo + 0.05);
   } catch {
-    return null;
+    out = null;
   }
+  contrastCache.set(key, out);
+  return out;
 }
 
 export class IconStore {

@@ -32,6 +32,9 @@ var import_obsidian = require("obsidian");
 function normalizeFolder(raw) {
   return raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 }
+function isDarkTheme() {
+  return document.body.classList.contains("theme-dark");
+}
 function normalizeSvgName(raw) {
   let name = raw.trim().replace(/^\/+/, "");
   if (!name || name.includes(".."))
@@ -168,7 +171,13 @@ function luminance(rgb) {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
+var contrastCache = /* @__PURE__ */ new Map();
 function contrastOnBackground(color) {
+  var _a;
+  const key = color.trim().toLowerCase();
+  if (contrastCache.has(key))
+    return (_a = contrastCache.get(key)) != null ? _a : null;
+  let out = null;
   try {
     const probe = document.createElement("span");
     probe.style.color = resolveColor(color);
@@ -178,13 +187,17 @@ function contrastOnBackground(color) {
     const fg = luminance(computed.color);
     const bg = luminance(computed.backgroundColor);
     probe.remove();
-    if (fg === null || bg === null)
+    if (fg === null || bg === null) {
+      contrastCache.set(key, null);
       return null;
+    }
     const [hi, lo] = fg >= bg ? [fg, bg] : [bg, fg];
-    return (hi + 0.05) / (lo + 0.05);
+    out = (hi + 0.05) / (lo + 0.05);
   } catch (e) {
-    return null;
+    out = null;
   }
+  contrastCache.set(key, out);
+  return out;
 }
 var IconStore = class {
   constructor(app, getFolder, cdn) {
@@ -4418,6 +4431,7 @@ var CdnCache = class {
     this.missing = /* @__PURE__ */ new Set();
     this.bytes = 0;
     this.saveTimer = 0;
+    this.dirty = false;
     try {
       const data = this.persist.load();
       for (const [key, svg] of Object.entries(data)) {
@@ -4442,6 +4456,7 @@ var CdnCache = class {
     this.cache.clear();
     this.missing.clear();
     this.bytes = 0;
+    this.dirty = false;
     this.persist.save({});
   }
   async getSvg(name) {
@@ -4480,13 +4495,18 @@ var CdnCache = class {
     this.bytes += svg.length;
   }
   scheduleSave() {
+    this.dirty = true;
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
+      this.dirty = false;
       this.persist.save(Object.fromEntries(this.cache));
     }, 2e3);
   }
   flush() {
     window.clearTimeout(this.saveTimer);
+    if (!this.dirty)
+      return;
+    this.dirty = false;
     this.persist.save(Object.fromEntries(this.cache));
   }
 };
@@ -4507,9 +4527,7 @@ function pickVariant(entry, isDark, hasLightVariant, autoLight = true) {
   }
   return out;
 }
-function isDarkTheme() {
-  return document.body.classList.contains("theme-dark");
-}
+var REFRESH_CONCURRENCY = 6;
 function hasSelfhostLight(ref) {
   return selfhostLightRefs().has(ref);
 }
@@ -4541,28 +4559,34 @@ var TabsTitles = class {
     this.timer = window.setTimeout(() => void this.refresh(), 80);
   }
   async refresh() {
-    var _a;
     const opts = this.getOpts();
     const dark = isDarkTheme();
-    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const path = this.leafPath(leaf);
-      const tabEl = leaf.tabHeaderInnerIconEl;
-      if (tabEl) {
-        const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
-        if (!entry)
-          this.restoreTab(leaf, tabEl);
-        else
-          await this.paintTab(tabEl, entry);
-      }
-      const titleEl = leaf.view.containerEl.querySelector(
-        ".inline-title"
+    const leaves = this.app.workspace.getLeavesOfType("markdown");
+    for (let i = 0; i < leaves.length; i += REFRESH_CONCURRENCY) {
+      await Promise.all(
+        leaves.slice(i, i + REFRESH_CONCURRENCY).map((leaf) => this.refreshLeaf(leaf, opts, dark))
       );
-      if (titleEl) {
-        (_a = titleEl.querySelector(":scope > .obsidian-icon-title")) == null ? void 0 : _a.remove();
-        const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
-        if (entry)
-          await this.paintTitle(titleEl, entry);
-      }
+    }
+  }
+  async refreshLeaf(leaf, opts, dark) {
+    var _a;
+    const path = this.leafPath(leaf);
+    const tabEl = leaf.tabHeaderInnerIconEl;
+    if (tabEl) {
+      const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
+      if (!entry)
+        this.restoreTab(leaf, tabEl);
+      else
+        await this.paintTab(tabEl, entry);
+    }
+    const titleEl = leaf.view.containerEl.querySelector(
+      ".inline-title"
+    );
+    if (titleEl) {
+      (_a = titleEl.querySelector(":scope > .obsidian-icon-title")) == null ? void 0 : _a.remove();
+      const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
+      if (entry)
+        await this.paintTitle(titleEl, entry);
     }
   }
   leafPath(leaf) {
@@ -4631,6 +4655,7 @@ function activeDoc() {
   const anyWindow = window;
   return (_a = anyWindow.activeDocument) != null ? _a : document;
 }
+var REFRESH_CONCURRENCY2 = 6;
 var ExplorerIcons = class {
   constructor(app, store, mapping, getAutoLight = () => true) {
     this.app = app;
@@ -4664,14 +4689,19 @@ var ExplorerIcons = class {
   }
   async refresh() {
     this.app.workspace.getLeavesOfType("file-explorer").forEach((leaf) => this.watchLeaf(leaf));
-    const rows = activeDoc().querySelectorAll(
-      ".nav-files-container .tree-item-self[data-path]"
+    const rows = Array.from(
+      activeDoc().querySelectorAll(
+        ".nav-files-container .tree-item-self[data-path]"
+      )
     );
-    for (const row of Array.from(rows)) {
-      const selfEl = row;
-      const path = selfEl.dataset.path;
-      if (path)
-        await this.renderRow(selfEl, path);
+    for (let i = 0; i < rows.length; i += REFRESH_CONCURRENCY2) {
+      await Promise.all(
+        rows.slice(i, i + REFRESH_CONCURRENCY2).map((row) => {
+          const selfEl = row;
+          const path = selfEl.dataset.path;
+          return path ? this.renderRow(selfEl, path) : Promise.resolve();
+        })
+      );
     }
   }
   watchLeaf(leaf) {
@@ -4697,7 +4727,7 @@ var ExplorerIcons = class {
       (_a = selfEl.querySelector(":scope > .obsidian-icon-explorer")) == null ? void 0 : _a.remove();
       return;
     }
-    const dark = document.body.classList.contains("theme-dark");
+    const dark = isDarkTheme();
     const entry = pickVariant(
       raw,
       dark,
@@ -5689,11 +5719,8 @@ function parseTagParams(first, second, third) {
   }
   return { size, color, darkIcon };
 }
-function isDarkTheme2() {
-  return document.body.classList.contains("theme-dark");
-}
 function resolveDarkRef(ref, dark, autoLight) {
-  if (!isDarkTheme2())
+  if (!isDarkTheme())
     return ref;
   if (dark)
     return dark;
@@ -5723,7 +5750,7 @@ var IconWidget = class extends import_view.WidgetType {
   }
   toDOM() {
     const span = document.createElement("span");
-    const ref = isDarkTheme2() && this.dark ? this.dark : this.ref;
+    const ref = isDarkTheme() && this.dark ? this.dark : this.ref;
     void renderIconInto(span, ref, this.store, {
       size: this.size,
       color: this.color
@@ -6076,50 +6103,15 @@ var InlineSvgIconsPlugin = class extends import_obsidian9.Plugin {
     if (!this.settings.cdnEnabled && !this.settings.selfhostEnabled)
       return [];
     const local = new Set(await this.icons.listSvgNames());
-    const refs = [];
     try {
-      const catalogs = await loadCatalogs();
-      if (this.settings.cdnEnabled) {
-        for (const name of catalogs.deviconNames) {
-          const ref = `devicon/${name}`;
-          if (!local.has(ref))
-            refs.push(ref);
-        }
-        for (const slug of catalogs.simpleSlugs) {
-          const ref = `simple/${slug}`;
-          if (!local.has(ref))
-            refs.push(ref);
-        }
-      }
-      if (this.settings.selfhostEnabled) {
-        for (const ref of catalogs.selfhost.keys()) {
-          const full = `selfhosted/${ref}`;
-          if (!local.has(full))
-            refs.push(full);
-        }
-      }
+      const catalog = await collectCatalogRefs(this.icons, {
+        cdn: this.settings.cdnEnabled,
+        selfhost: this.settings.selfhostEnabled
+      });
+      return catalog.refs.filter((ref) => ref.includes("/") && !local.has(ref));
     } catch (e) {
-      if (this.settings.cdnEnabled) {
-        for (const name of DEVICON_NAMES) {
-          const ref = `devicon/${name}`;
-          if (!local.has(ref))
-            refs.push(ref);
-        }
-        let slugs = SIMPLE_CDN_SLUGS;
-        try {
-          const live = await fetchSimpleSlugs();
-          if (live.length > 0)
-            slugs = live;
-        } catch (e2) {
-        }
-        for (const slug of slugs) {
-          const ref = `simple/${slug}`;
-          if (!local.has(ref))
-            refs.push(ref);
-        }
-      }
+      return [];
     }
-    return refs;
   }
   async applyIcons(paths, result) {
     const entry = {

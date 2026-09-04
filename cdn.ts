@@ -299,6 +299,7 @@ export class CdnCache {
   private missing = new Set<string>();
   private bytes = 0;
   private saveTimer = 0;
+  private dirty = false;
 
   constructor(
     private persist: {
@@ -335,6 +336,7 @@ export class CdnCache {
     this.cache.clear();
     this.missing.clear();
     this.bytes = 0;
+    this.dirty = false;
     this.persist.save({});
   }
 
@@ -379,14 +381,18 @@ export class CdnCache {
   }
 
   private scheduleSave(): void {
+    this.dirty = true;
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
+      this.dirty = false;
       this.persist.save(Object.fromEntries(this.cache));
     }, 2000);
   }
 
   flush(): void {
     window.clearTimeout(this.saveTimer);
+    if (!this.dirty) return;
+    this.dirty = false;
     this.persist.save(Object.fromEntries(this.cache));
   }
 }
