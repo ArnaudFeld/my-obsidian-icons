@@ -1,6 +1,8 @@
 import { App, WorkspaceLeaf } from "obsidian";
 import { IconStore, parseIconRef, renderIconInto } from "./icons";
 import { MappingStore } from "./mapping";
+import { pickVariant } from "./tabs-titles";
+import { selfhostLightRefs } from "./cdn";
 
 function activeDoc(): Document {
   const anyWindow = window as unknown as { activeDocument?: Document };
@@ -21,6 +23,7 @@ export class ExplorerIcons {
     private app: App,
     private store: IconStore,
     private mapping: MappingStore,
+    private getAutoLight: () => boolean = () => true,
   ) {}
 
   start(): void {
@@ -79,14 +82,20 @@ export class ExplorerIcons {
   }
 
   private async renderRow(selfEl: HTMLElement, path: string): Promise<void> {
-    const raw = this.mapping.get(path);
+    const raw = this.mapping.resolve(path);
     if (!raw) {
       selfEl
         .querySelector(":scope > .obsidian-icon-explorer")
         ?.remove();
       return;
     }
-    const entry = raw;
+    const dark = document.body.classList.contains("theme-dark");
+    const entry = pickVariant(
+      raw,
+      dark,
+      (ref) => selfhostLightRefs().has(ref),
+      this.getAutoLight(),
+    );
     const ref = parseIconRef(entry.icon);
     let badge = selfEl.querySelector(
       ":scope > .obsidian-icon-explorer",
@@ -102,12 +111,12 @@ export class ExplorerIcons {
       if (inner) inner.insertAdjacentElement("beforebegin", badge);
       else selfEl.prepend(badge);
     }
-    const key = `${entry.icon}|${entry.color ?? ""}`;
+    const key = `${dark ? "dark" : "light"}|${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`;
     if (badge.dataset.ref === key) return;
     badge.dataset.ref = key;
     badge.innerHTML = "";
     badge.removeAttribute("style");
-    await renderIconInto(badge, ref, this.store, { color: entry.color });
+    await renderIconInto(badge, ref, this.store, { color: entry.color, size: entry.size });
     badge.addClass("obsidian-icon-explorer");
   }
 }

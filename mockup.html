@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inline SVG Icons 0.0.9 – Mockup</title>
+<style>
+  :root {
+    --bg: #1e1e1e; --panel: #262626; --panel2: #2b2b2b;
+    --border: #383838; --text: #dcddde; --muted: #999;
+    --accent: #7f6df2; --hover: #333;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 0 0 12px; }
+  /* Explorer Baum */
+  .tree { font-size: 14px; }
+  .row {
+    display: flex; align-items: center; gap: 2px;
+    padding: 3px 8px; border-radius: 6px; cursor: default;
+  }
+  .row:hover { background: var(--hover); }
+  .row.active { background: #3a3a3a; }
+  .indent { padding-left: 22px; }
+  .indent2 { padding-left: 44px; }
+  .arrow { color: var(--muted); font-size: 10px; width: 14px; }
+  .ic { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; }
+  .ic img, .ic svg { width: 100%; height: 100%; display: block; }
+  .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Notiz */
+  .note h3 { margin: 0 0 8px; font-size: 22px; }
+  .note p { margin: 8px 0; }
+  .code {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12.5px;
+    background: #161616; border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; color: #c9a86a;
+    margin: 10px 0 4px; white-space: pre-wrap;
+  }
+  .rendered { font-size: 15px; }
+  .rendered .ic { width: 1em; height: 1em; vertical-align: -0.125em;
+    display: inline-block; }
+  .missing {
+    font-size: .85em; color: var(--muted);
+    border: 1px dashed var(--muted); border-radius: 4px; padding: 0 4px;
+  }
+  /* Picker */
+  .picker {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-top: 16px;
+    max-width: 560px;
+  }
+  .picker input[type="text"] {
+    width: 100%; background: #161616; color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font-size: 14px;
+  }
+  .group { font-size: 11px; font-weight: 600; color: var(--muted);
+    padding: 10px 6px 2px; }
+  .pick-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 8px; border-radius: 6px; cursor: pointer;
+  }
+  .pick-row:hover { background: var(--hover); }
+  .pick-row.sel { background: #3d3a5c; }
+  .pick-row .ic { width: 22px; height: 22px; }
+  .dots { display: flex; align-items: center; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; }
+  .dot.sel { border-color: #fff; }
+  .dot.none { width: auto; border-radius: 11px; padding: 0 10px; font-size: 12px;
+    background: var(--border); color: var(--muted); height: 22px; }
+  .btns { display: flex; justify-content: flex-end; gap: 8px; }
+  button {
+    background: var(--border); color: var(--text); border: none;
+    border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer;
+  }
+  button.cta { background: var(--accent); color: #fff; }
+  /* Kontextmenü */
+  .menu {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px; width: 220px; margin-top: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .menu .mi { padding: 7px 10px; border-radius: 5px; font-size: 13px; }
+  .menu .mi:hover { background: var(--hover); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; margin: -16px -16px 12px; padding: 10px 10px 0;
+    border-bottom: 1px solid var(--border); }
+  .tab { display: flex; align-items: center; gap: 7px; padding: 6px 12px;
+    font-size: 13px; color: var(--muted); border-radius: 6px 6px 0 0; }
+  .tab.on { background: #333; color: var(--text); }
+  .tab .ic { width: 15px; height: 15px; }
+  .fm {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12.5px;
+    background: #161616; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 8px 10px; color: #9ecbff; margin: 10px 0 4px;
+    white-space: pre-wrap;
+  }
+  /* Einstellungen */
+  .setrow { display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .setrow:last-child { border-bottom: none; }
+  .setrow small { display: block; color: var(--muted); font-size: 12px; }
+  .setval { font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+    background: #161616; border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 9px; color: var(--text); white-space: nowrap; }
+  .toggle { width: 38px; height: 22px; border-radius: 11px; background: var(--accent);
+    position: relative; flex-shrink: 0; }
+  .toggle::after { content: ""; position: absolute; top: 3px; right: 3px;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .toggle.off { background: #555; }
+  .toggle.off::after { right: auto; left: 3px; }
+  /* Regeln */
+  .rule { border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; margin: 8px 0; font-size: 13px; }
+  .rule .when { color: var(--muted); }
+  .rule .then { margin-top: 6px; display: flex; align-items: center; gap: 8px; }
+  .rule .then .ic { width: 18px; height: 18px; }
+  .badge { font-size: 11px; background: #3d3a5c; color: #cfc9ff;
+    border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+  .st-in { background: #1f3d2b; color: #8ce99a; }
+  .st-plan { background: #3d3a5c; color: #cfc9ff; }
+  h2 .badge { margin-left: 8px; }
+  .cloud { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .hint { color: var(--muted); font-size: 13px; }
+  @media (max-width: 900px) { .grid, .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Inline SVG Icons 0.0.9 – Mockup</h1>
+<div class="sub">Oben der Stand der 0.0.9 wie sie bei dir läuft, unten die Vorschau der restlichen Punkte. Jeder Bereich trägt seinen Status direkt in der Überschrift.</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Datei Explorer <span class="badge st-in">eingebaut</span></h2>
+    <div class="tree">
+      <div class="row"><span class="arrow">▾</span><span class="ic"><img src="starter-icons/devicon/proxmox.svg" alt=""></span><span class="fname">Homelab</span></div>
+      <div class="row indent"><span class="arrow">▾</span><span class="ic"><img src="starter-icons/devicon/docker.svg" alt=""></span><span class="fname">docker</span></div>
+      <div class="row indent2 active"><span class="arrow"></span><span class="ic"><img src="starter-icons/dockhand.svg" alt=""></span><span class="fname">dockhand.md</span></div>
+      <div class="row indent2"><span class="arrow"></span><span class="ic"><img src="starter-icons/devicon/portainer.svg" alt=""></span><span class="fname">portainer.md</span></div>
+      <div class="row indent"><span class="arrow">▸</span><span class="ic"><img src="starter-icons/devicon/raspberrypi.svg" alt=""></span><span class="fname">raspberrypi</span></div>
+      <div class="row"><span class="arrow">▾</span><span class="ic"><img src="starter-icons/simple/homeassistant.svg" alt="" style="filter:invert(62%) sepia(98%) saturate(2100%) hue-rotate(160deg)"></span><span class="fname" style="color:#7dd3fc">Smart Home</span></div>
+      <div class="row indent"><span class="arrow"></span><span class="ic"><img src="starter-icons/simple/esphome.svg" alt="" style="filter:invert(62%) sepia(98%) saturate(2100%) hue-rotate(160deg)"></span><span class="fname">esphome.md</span></div>
+      <div class="row indent"><span class="arrow"></span><span class="ic"><img src="starter-icons/simple/pihole.svg" alt=""></span><span class="fname">pihole.md</span></div>
+      <div class="row"><span class="arrow"></span><span class="ic">📄</span><span class="fname">Notizen.md</span></div>
+      <div class="row"><span class="arrow">▾</span><span class="ic"><img src="starter-icons/devicon/prometheus.svg" alt=""></span><span class="fname">Monitoring</span>&nbsp;<span class="badge">vererbt</span></div>
+      <div class="row indent"><span class="arrow"></span><span class="ic" style="opacity:.65"><img src="starter-icons/devicon/prometheus.svg" alt=""></span><span class="fname">alerts.md</span></div>
+    </div>
+    <p class="hint">Kinder erben das Ordner Icon blasser, abschaltbar in den Einstellungen. <span class="badge st-plan">geplant</span></p>
+  </div>
+
+  <div class="panel note">
+    <h2>Notiz – Live Preview (dockhand.md) <span class="badge st-in">eingebaut</span></h2>
+    <div class="tabs">
+      <div class="tab on"><span class="ic"><img src="starter-icons/dockhand.svg" alt=""></span><span>dockhand.md</span></div>
+      <div class="tab"><span class="ic"><img src="starter-icons/devicon/portainer.svg" alt=""></span><span>portainer.md</span></div>
+      <div class="tab"><span class="ic"><img src="starter-icons/devicon/grafana.svg" alt=""></span><span>grafana.md</span></div>
+    </div>
+    <p class="hint" style="margin:0 0 8px">Tabs mit Icons <span class="badge st-in">eingebaut</span></p>
+    <h3><span class="ic" style="width:1em;height:1em;vertical-align:-0.125em;display:inline-block"><img src="starter-icons/dockhand.svg" alt=""></span> Dockhand</h3>
+    <div class="code">{{icon:docker}} läuft auf {{icon:devicon/proxmox}} und {{icon:devicon/raspberrypi|20}}</div>
+    <p class="rendered"><span class="ic"><img src="starter-icons/devicon/docker.svg" alt=""></span> läuft auf <span class="ic"><img src="starter-icons/devicon/proxmox.svg" alt=""></span> und <span class="ic" style="width:20px;height:20px"><img src="starter-icons/devicon/raspberrypi.svg" alt=""></span></p>
+    <div class="code">{{icon:simple/homeassistant}} steuert {{icon:simple/esphome}} und {{icon:typo}}</div>
+    <p class="rendered"><span class="ic"><img src="starter-icons/simple/homeassistant.svg" alt=""></span> steuert <span class="ic"><img src="starter-icons/simple/esphome.svg" alt=""></span> und <span class="missing" title="Icon nicht gefunden: typo">[typo]</span></p>
+    <div class="code">{{icon:lucide:server|20|blue}} Status: ok</div>
+    <p class="rendered"><span class="ic" style="width:20px;height:20px;color:#339af0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></span> Status: ok <span class="badge st-in">eingebaut: Farbe im Shortcode</span></p>
+    <div class="fm">---<br>icon: simple/homeassistant<br>---</div>
+    <p class="rendered"><span class="ic"><img src="starter-icons/simple/homeassistant.svg" alt=""></span> Titel Icon aus Frontmatter <span class="badge st-in">eingebaut</span></p>
+  </div>
+</div>
+
+<div class="two">
+  <div class="panel">
+    <h2>Picker – nach Rechtsklick auf dockhand.md <span class="badge st-in">eingebaut</span></h2>
+    <div class="picker" style="margin-top:0;border:none;padding:0">
+      <input type="text" value="dock" readonly>
+      <div class="group">Eigene</div>
+      <div class="pick-row sel"><span class="ic"><img src="starter-icons/dockhand.svg" alt=""></span><span>dockhand</span></div>
+      <div class="group">Devicon</div>
+      <div class="pick-row"><span class="ic"><img src="starter-icons/devicon/docker.svg" alt=""></span><span>devicon/docker</span></div>
+      <div class="group">Farbe: <span style="color:var(--text)">Grün</span></div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div class="ic" style="width:56px;height:56px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center"><img src="starter-icons/dockhand.svg" alt="" style="width:36px;height:36px"></div>
+        <div>
+      <div class="dots">
+        <span class="dot none" title="Keine Farbe">✕</span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#e03131"></span><span style="font-size:10px;color:var(--muted)">Rot</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#f08c00"></span><span style="font-size:10px;color:var(--muted)">Orange</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#ffd43b"></span><span style="font-size:10px;color:var(--muted)">Gelb</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot sel" style="background:#40c057"></span><span style="font-size:10px;color:var(--muted)">Grün</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#22b8cf"></span><span style="font-size:10px;color:var(--muted)">Türkis</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#339af0"></span><span style="font-size:10px;color:var(--muted)">Blau</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#9775fa"></span><span style="font-size:10px;color:var(--muted)">Lila</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#f783ac"></span><span style="font-size:10px;color:var(--muted)">Pink</span></span>
+        <span style="display:inline-flex;flex-direction:column;align-items:center"><span class="dot" style="background:#868e96"></span><span style="font-size:10px;color:var(--muted)">Grau</span></span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center"><span class="dot" style="background:#40c057"></span><span style="font-family:monospace;font-size:12px;border:1px solid var(--border);border-radius:6px;padding:4px 8px">#40c057</span></div>
+        </div>
+      </div>
+      <div class="btns"><button>Abbrechen</button><button>Als Datei speichern</button><button class="cta">Übernehmen</button></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Kontextmenü – Rechtsklick im Explorer <span class="badge st-in">eingebaut</span></h2>
+    <div class="menu">
+      <div class="mi">🖼&nbsp;&nbsp;Change icon</div>
+      <div class="mi">🗑&nbsp;&nbsp;Remove icon</div>
+    </div>
+    <p style="color:var(--muted);font-size:13px">Bei Mehrfachauswahl heißt es Change icons (3) und gilt für alle markierten Einträge auf einmal.</p>
+  </div>
+</div>
+
+<div class="two">
+  <div class="panel">
+    <h2>Einstellungen – Quellen &amp; CDN <span class="badge st-in">eingebaut</span></h2>
+    <div class="setrow"><div>Icon Ordner<small>Eigene SVGs im Vault</small></div><span class="setval">_assets/icons</span></div>
+    <div class="setrow"><div>Mapping Datei<small>Explorer Zuordnung als JSON</small></div><span class="setval">_assets/icon-mapping.json</span></div>
+    <div class="setrow"><div>CDN Nachladen<small>Fehlende Devicon und Simple Icons von jsdelivr laden und cachen</small></div><span class="toggle"></span></div>
+    <div class="setrow"><div>Icon Cache<small>12 Icons auf diesem Gerät</small></div><button>Leeren</button></div>
+    <div class="setrow"><div>Vererbte Ordner Icons<small>Kinder zeigen das Ordner Icon blasser</small></div><span class="toggle"></span></div>
+    <div class="group">Picker – Suche nach „kuber"</div>
+    <div class="pick-row"><span class="ic"><img src="starter-icons/devicon/kubernetes.svg" alt=""></span><span>devicon/kubernetes</span></div>
+    <div class="pick-row"><span class="ic">☁</span><span>devicon/kubevirt</span>&nbsp;<span class="cloud">lädt beim Wählen nach ⭳</span></div>
+  </div>
+
+  <div class="panel">
+    <h2>Regeln – automatisch wie bei Iconic <span class="badge st-plan">geplant</span></h2>
+    <div class="rule">
+      <div class="when">WENN Pfad enthält „Homelab/docker"</div>
+      <div class="then"><span class="ic"><img src="starter-icons/devicon/docker.svg" alt=""></span><span>devicon/docker</span></div>
+    </div>
+    <div class="rule">
+      <div class="when">WENN Endung ist „.md" UND Ordner ist „Smart Home"</div>
+      <div class="then"><span class="ic"><img src="starter-icons/simple/homeassistant.svg" alt=""></span><span>simple/homeassistant</span>&nbsp;<span class="badge">blau</span></div>
+    </div>
+    <div class="btns" style="justify-content:flex-start"><button>+ Regel hinzufügen</button></div>
+    <p class="hint">Regeln greifen vor dem Mapping, per Hand gesetzte Icons bleiben bestehen.</p>
+  </div>
+</div>
+
+</body>
+</html>

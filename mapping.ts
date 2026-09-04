@@ -1,12 +1,23 @@
 import { App, TFile } from "obsidian";
-import { normalizeFolder } from "./icons";
+import { normalizeFolder, parseIconRef, parseSize } from "./icons";
 
 export interface MappingEntry {
   icon: string;
   color?: string;
+  size?: string;
+  iconDark?: string;
 }
 
 export type IconMapping = Record<string, string | MappingEntry>;
+
+/** Reservierter Schlüssel für Dateityp Regeln in derselben Datei. */
+export const EXT_KEY = "__ext__";
+
+/** Endung normieren: klein, ohne Punkt, nur Buchstaben und Zahlen. */
+export function normalizeExt(raw: string): string | null {
+  const ext = raw.trim().toLowerCase().replace(/^\.+/, "");
+  return /^[a-z0-9]+$/.test(ext) ? ext : null;
+}
 
 /** String Kurzform bleibt gültig und bedeutet keine Farbe. */
 export function normalizeEntry(
@@ -19,6 +30,11 @@ export function normalizeEntry(
   if (value && typeof value.icon === "string" && value.icon.trim()) {
     const entry: MappingEntry = { icon: value.icon.trim() };
     if (value.color && value.color.trim()) entry.color = value.color.trim();
+    const size = parseSize(value.size?.trim());
+    if (size) entry.size = size;
+    if (typeof value.iconDark === "string" && parseIconRef(value.iconDark)) {
+      entry.iconDark = value.iconDark.trim();
+    }
     return entry;
   }
   return null;
@@ -60,11 +76,100 @@ export class MappingStore {
   }
 
   get(path: string): MappingEntry | null {
+    if (path === EXT_KEY) return null;
     return normalizeEntry(this.data[path]);
   }
 
+  entries(): [string, MappingEntry][] {
+    const out: [string, MappingEntry][] = [];
+    for (const [path, value] of Object.entries(this.data)) {
+      if (path === EXT_KEY) continue;
+      const entry = normalizeEntry(value);
+      if (entry) out.push([path, entry]);
+    }
+    return out.sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
+  private extSection(): Record<string, string | MappingEntry> {
+    const section: unknown = this.data[EXT_KEY];
+    if (section && typeof section === "object" && !Array.isArray(section)) {
+      return section as Record<string, string | MappingEntry>;
+    }
+    return {};
+  }
+
+  extEntries(): [string, MappingEntry][] {
+    const out: [string, MappingEntry][] = [];
+    for (const [ext, value] of Object.entries(this.extSection())) {
+      const entry = normalizeEntry(value);
+      if (entry) out.push([ext, entry]);
+    }
+    return out.sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
+  getExt(ext: string): MappingEntry | null {
+    return normalizeEntry(this.extSection()[ext]);
+  }
+
+  async setExt(ext: string, entry: MappingEntry): Promise<void> {
+    const clean: MappingEntry = { icon: entry.icon };
+    if (entry.color) clean.color = entry.color;
+    if (entry.size) clean.size = entry.size;
+    if (entry.iconDark) clean.iconDark = entry.iconDark;
+    const section = this.extSection();
+    section[ext] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
+    this.data[EXT_KEY] = section as unknown as MappingEntry;
+    await this.save();
+  }
+
+  async removeExt(ext: string): Promise<void> {
+    const section = this.extSection();
+    if (ext in section) {
+      delete section[ext];
+      if (Object.keys(section).length === 0) delete this.data[EXT_KEY];
+      else this.data[EXT_KEY] = section as unknown as MappingEntry;
+      await this.save();
+    }
+  }
+
+  /**
+   * Rangfolge: direkter Pfad, dann Dateityp als Rückfall.
+   * Nur für Dateien, Ordner fallen nie unter Dateityp.
+   */
+  resolve(path: string): MappingEntry | null {
+    const direct = this.get(path);
+    if (direct) return direct;
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) return null;
+    const ext = file.extension.trim().toLowerCase();
+    if (!ext) return null;
+    return this.getExt(ext);
+  }
+
+  private static cleanEntry(entry: MappingEntry): MappingEntry {
+    const clean: MappingEntry = { icon: entry.icon };
+    if (entry.color) clean.color = entry.color;
+    if (entry.size) clean.size = entry.size;
+    if (entry.iconDark) clean.iconDark = entry.iconDark;
+    return clean;
+  }
+
+  private static asStored(entry: MappingEntry): string | MappingEntry {
+    const clean = MappingStore.cleanEntry(entry);
+    return clean.color || clean.size || clean.iconDark ? clean : clean.icon;
+  }
+
   async set(path: string, entry: MappingEntry): Promise<void> {
-    this.data[path] = entry.color ? { icon: entry.icon, color: entry.color } : entry.icon;
+    this.data[path] = MappingStore.asStored(entry);
+    await this.save();
+  }
+
+  /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
+  async setMany(items: [string, MappingEntry][]): Promise<void> {
+    if (items.length === 0) return;
+    for (const [path, entry] of items) {
+      this.data[path] = MappingStore.asStored(entry);
+    }
     await this.save();
   }
 
@@ -75,8 +180,21 @@ export class MappingStore {
     }
   }
 
+  /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
+  async removeMany(paths: string[]): Promise<void> {
+    let changed = false;
+    for (const path of paths) {
+      if (path in this.data) {
+        delete this.data[path];
+        changed = true;
+      }
+    }
+    if (changed) await this.save();
+  }
+
   /** Ordner Umbenennung zieht Kinder mit um. */
   migrateRename(oldPath: string, newPath: string, isFolder: boolean): boolean {
+    if (oldPath === EXT_KEY) return false;
     let changed = false;
     if (oldPath in this.data) {
       this.data[newPath] = this.data[oldPath];
@@ -98,6 +216,7 @@ export class MappingStore {
   }
 
   removePath(path: string, isFolder: boolean): boolean {
+    if (path === EXT_KEY) return false;
     let changed = false;
     if (path in this.data) {
       delete this.data[path];

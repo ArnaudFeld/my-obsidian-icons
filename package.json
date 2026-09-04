@@ -1,6 +1,6 @@
 {
   "name": "inline-svg-icons",
-  "version": "0.0.1",
+  "version": "0.0.9",
   "description": "Obsidian Plugin: {{icon:name}} in Notizen und Explorer Icons per Rechtsklick",
   "main": "main.js",
   "scripts": {

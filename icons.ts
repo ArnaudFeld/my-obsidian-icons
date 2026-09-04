@@ -39,12 +39,65 @@ export function parseIconRef(raw: string): IconRef | null {
   return name ? { kind: "svg", name } : null;
 }
 
-/** Marken Icons behalten Originalfarben, dort greift keine Farbwahl. */
+/**
+ * Devicon Dateien sind oft mehrfarbig mit festem fill. Einfarbige lassen
+ * sich trotzdem umfärben, mehrfarbige bleiben unangetastet.
+ */
 export function isBrandSvg(ref: IconRef): boolean {
-  return (
-    ref.kind === "svg" &&
-    (ref.name.startsWith("devicon/") || ref.name.startsWith("simple/"))
-  );
+  return ref.kind === "svg" && ref.name.startsWith("devicon/");
+}
+
+/** Theme Variable zu konkretem rgb auflösen, für SVG Attribute nötig. */
+export function resolveColor(color: string): string {
+  if (!color.startsWith("var(")) return color;
+  const probe = document.createElement("span");
+  probe.style.color = color;
+  document.body.appendChild(probe);
+  const rgb = getComputedStyle(probe).color;
+  probe.remove();
+  return rgb || color;
+}
+
+/**
+ * Färbt ein SVG um, nur wenn es effektiv einfarbig ist: genau eine
+ * fill oder stroke Farbe, kein Verlauf. Mehrfarbiges bleibt wie es ist.
+ */
+function recolorSingle(svgEl: SVGSVGElement, color: string): void {
+  const all: Element[] = [svgEl, ...Array.from(svgEl.querySelectorAll("*"))];
+  const fills = new Set<string>();
+  const strokes = new Set<string>();
+  for (const node of all) {
+    const el = node as SVGElement;
+    const fill = (el.getAttribute("fill") ?? el.style.fill ?? "").trim().toLowerCase();
+    const stroke = (el.getAttribute("stroke") ?? el.style.stroke ?? "").trim().toLowerCase();
+    for (const [value, set] of [[fill, fills], [stroke, strokes]] as const) {
+      if (!value || value === "none" || value === "transparent" || value === "currentcolor") continue;
+      if (value.startsWith("url(")) return;
+      set.add(value);
+    }
+  }
+  const concrete = resolveColor(color);
+  const repaint = (kind: "fill" | "stroke", from: string) => {
+    for (const node of all) {
+      const el = node as SVGElement;
+      if ((el.getAttribute(kind) ?? "").trim().toLowerCase() === from) {
+        el.setAttribute(kind, concrete);
+      }
+      const inline = kind === "fill" ? el.style.fill : el.style.stroke;
+      if (inline && inline.trim().toLowerCase() === from) {
+        if (kind === "fill") el.style.fill = concrete;
+        else el.style.stroke = concrete;
+      }
+    }
+  };
+  if (fills.size === 1) {
+    const only = [...fills][0];
+    repaint("fill", only);
+    repaint("stroke", only);
+  } else if (fills.size === 0 && strokes.size === 1) {
+    const only = [...strokes][0];
+    repaint("stroke", only);
+  }
 }
 
 export function parseSize(raw: string | undefined): string | undefined {
@@ -74,12 +127,17 @@ export const THEME_COLORS = [
   "gray",
 ] as const;
 
+/** Theme Namen ohne eigene --color-* Variable brauchen einen Ersatz. */
+const THEME_VAR_FALLBACK: Record<string, string> = {
+  gray: "--color-base-70",
+};
+
 /** Theme Name -> CSS Variable, Hex und CSS Farben direkt, sonst null. */
 export function themeVar(color: string | undefined): string | null {
   if (!color) return null;
   const name = color.trim().toLowerCase();
   if ((THEME_COLORS as readonly string[]).includes(name)) {
-    return `var(--color-${name})`;
+    return `var(${THEME_VAR_FALLBACK[name] ?? `--color-${name}`})`;
   }
   try {
     if (CSS.supports("color", color)) return color;
@@ -89,12 +147,50 @@ export function themeVar(color: string | undefined): string | null {
   return null;
 }
 
+function luminance(rgb: string): number | null {
+  const m = /rgba?\(([^)]+)\)/.exec(rgb);
+  if (!m) return null;
+  const parts = m[1].split(",").map((v) => parseFloat(v.trim()));
+  if (parts.length < 3 || parts.some((v) => Number.isNaN(v))) return null;
+  const [r, g, b] = parts.map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Kontrast der Farbe zum Theme Hintergrund als Verhältnis, z.B. 4.5.
+ * Null wenn nicht bestimmbar. Für die Warnung im Picker.
+ */
+export function contrastOnBackground(color: string): number | null {
+  try {
+    const probe = document.createElement("span");
+    probe.style.color = resolveColor(color);
+    probe.style.background = "var(--background-primary)";
+    document.body.appendChild(probe);
+    const computed = getComputedStyle(probe);
+    const fg = luminance(computed.color);
+    const bg = luminance(computed.backgroundColor);
+    probe.remove();
+    if (fg === null || bg === null) return null;
+    const [hi, lo] = fg >= bg ? [fg, bg] : [bg, fg];
+    return (hi + 0.05) / (lo + 0.05);
+  } catch {
+    return null;
+  }
+}
+
 export class IconStore {
   private cache = new Map<string, string>();
 
   constructor(
     private app: App,
     private getFolder: () => string,
+    private cdn?: {
+      enabled: () => boolean;
+      getSvg: (name: string) => Promise<string | null>;
+    },
   ) {}
 
   private filePath(name: string): string {
@@ -107,15 +203,21 @@ export class IconStore {
     if (hit !== undefined) return hit;
     try {
       const file = this.app.vault.getAbstractFileByPath(path);
-      if (!(file instanceof TFile)) return null;
-      const raw = await this.app.vault.read(file);
-      if (!raw.includes("<svg")) return null;
-      const clean = sanitizeSvg(raw);
-      this.cache.set(path, clean);
-      return clean;
+      if (file instanceof TFile) {
+        const raw = await this.app.vault.read(file);
+        if (raw.includes("<svg")) {
+          const clean = sanitizeSvg(raw);
+          this.cache.set(path, clean);
+          return clean;
+        }
+      }
     } catch {
-      return null;
+      /* weiter zum CDN Fallback */
     }
+    if (this.cdn?.enabled()) {
+      return this.cdn.getSvg(name);
+    }
+    return null;
   }
 
   /** Alle SVGs im Icon Ordner, relativ und ohne Endung, sortiert. */
@@ -177,7 +279,7 @@ export async function renderIconInto(
   el.addClass("obsidian-icon-inline");
   const label =
     ref.kind === "svg" ? ref.name : ref.kind === "lucide" ? ref.id : ref.char;
-  const color = !isBrandSvg(ref) ? themeVar(opts?.color) : null;
+  const color = themeVar(opts?.color);
   if (opts?.size) {
     el.style.width = opts.size;
     el.style.height = opts.size;
@@ -224,6 +326,9 @@ export async function renderIconInto(
     !svgEl.hasAttribute("stroke")
   ) {
     svgEl.setAttribute("fill", "currentColor");
+  }
+  if (color) {
+    recolorSingle(svgEl, color);
   }
   if (opts?.size) {
     svgEl.setAttribute("width", opts.size);

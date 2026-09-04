@@ -10,6 +10,10 @@
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* Nur ohne eigenes fill Attribut, damit Lucide mit fill="none" dünn bleibt. */
+.obsidian-icon-inline svg:not([fill]) {
   fill: currentColor;
 }
 
@@ -105,11 +109,86 @@
   margin-bottom: 4px;
 }
 
-.obsidian-icon-picker-dots {
+.obsidian-icon-picker-colorhead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.obsidian-icon-picker-colorhead .obsidian-icon-picker-label {
+  margin-bottom: 0;
+}
+
+.obsidian-icon-picker-colorname {
+  font-size: 0.85em;
+  color: var(--text-normal);
+}
+
+.obsidian-icon-picker-colorbody {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+.obsidian-icon-picker-bigpreview {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.obsidian-icon-picker-bigpreview svg {
+  width: 36px;
+  height: 36px;
+}
+
+.obsidian-icon-picker-dotwrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.obsidian-icon-picker-dotlabel {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.obsidian-icon-picker-hexrow {
+  display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.obsidian-icon-picker-hextext {
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  width: 90px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.obsidian-icon-picker-warn {
+  font-size: 12px;
+  color: var(--color-orange);
+  margin-top: 6px;
+}
+
+.obsidian-icon-picker-dots {
+  display: grid;
+  grid-template-columns: repeat(5, 52px);
+  gap: 8px 4px;
+  justify-content: start;
   margin-bottom: 12px;
 }
 
@@ -127,11 +206,12 @@
 }
 
 .obsidian-icon-dot-none {
-  width: auto;
+  width: 22px;
   height: 22px;
-  border-radius: 11px;
-  padding: 0 8px;
-  font-size: 0.75em;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
   background: var(--background-modifier-border);
   color: var(--text-muted);
 }
@@ -149,4 +229,59 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.obsidian-icon-picker-fav {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.obsidian-icon-gallery .modal-title,
+.obsidian-icon-gallery h3 {
+  margin-top: 0;
+}
+
+.obsidian-icon-gallery-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+
+.obsidian-icon-gallery-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.obsidian-icon-gallery-row .obsidian-icon-picker-preview {
+  width: 22px;
+  height: 22px;
+}
+
+.obsidian-icon-gallery-remove {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.obsidian-icon-suggest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.obsidian-icon-suggest-row .obsidian-icon-picker-preview {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.obsidian-icon-suggest-row .obsidian-icon-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
