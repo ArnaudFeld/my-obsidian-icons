@@ -9,7 +9,15 @@ import {
 import { MappingStore, normalizeEntry, normalizeExt } from "../mapping";
 import type { IconMapping } from "../mapping";
 import { collectImportEntries } from "../exchange";
-import { currentLanguage, slogan, colorName, t } from "../i18n";
+import {
+  currentLanguage,
+  slogan,
+  colorName,
+  t,
+  missingTranslations,
+} from "../i18n";
+import { badgeKey, isBadgeMutation } from "../explorer";
+import { unusedSvgNames } from "../gallery";
 import { setStubLanguage } from "./obsidian-stub";
 import { pickVariant } from "../tabs-titles";
 import { CdnCache, MISSING_TTL_MS } from "../cdn";
@@ -626,6 +634,49 @@ check("UI Texte zweisprachig mit Platzhaltern", () => {
   setStubLanguage("it");
   assert.equal(t("menu.change"), "Change icon");
   setStubLanguage("en");
+});
+
+check("Keine fehlenden Übersetzungen", () => {
+  assert.deepEqual(missingTranslations(), []);
+});
+
+check("UI Texte in vier Sprachen", () => {
+  setStubLanguage("fr");
+  assert.equal(t("menu.change"), "Changer l'icône");
+  assert.equal(t("pick.apply"), "Appliquer");
+  setStubLanguage("es");
+  assert.equal(t("menu.change"), "Cambiar icono");
+  assert.equal(t("pick.apply"), "Aplicar");
+  setStubLanguage("it");
+  assert.equal(t("menu.change"), "Change icon");
+  setStubLanguage("en");
+});
+
+check("Explorer Badge Schlüssel", () => {
+  assert.equal(badgeKey(false, "server"), "light|server||");
+  assert.equal(badgeKey(true, "server", "red", "20"), "dark|server|red|20");
+});
+
+check("Explorer erkennt eigene Badge Mutationen", () => {
+  const badge = {
+    closest: (sel: string) =>
+      sel === ".obsidian-icon-explorer" ? ({} as Element) : null,
+  };
+  const other = { closest: () => null };
+  const asRecord = (target: unknown): MutationRecord =>
+    ({ target } as unknown as MutationRecord);
+  assert.equal(isBadgeMutation([asRecord(badge)]), true);
+  assert.equal(isBadgeMutation([asRecord(other)]), false);
+  assert.equal(isBadgeMutation([asRecord(badge), asRecord(other)]), false);
+});
+
+check("Galerie findet ungenutzte Dateien", () => {
+  const entries = [
+    { icon: "server" },
+    { icon: "lucide:folder", iconDark: "router" },
+  ];
+  assert.deepEqual(unusedSvgNames(["server", "router", "db"], entries), ["db"]);
+  assert.deepEqual(unusedSvgNames([], entries), []);
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

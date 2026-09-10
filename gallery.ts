@@ -1,10 +1,27 @@
 import { App, Modal } from "obsidian";
 import { IconRef, IconStore, parseIconRef, renderIconInto } from "./icons";
-import { MappingStore } from "./mapping";
+import { MappingEntry, MappingStore } from "./mapping";
 import { t } from "./i18n";
 
 /** Gleichzeitige Vorschaubilder, wie im Explorer begrenzt. */
 const PAINT_CONCURRENCY = 6;
+
+/** Dateinamen im Icon Ordner, die kein Mapping Eintrag nutzt. */
+export function unusedSvgNames(
+  localNames: string[],
+  entries: MappingEntry[],
+): string[] {
+  const local = new Set(localNames);
+  for (const entry of entries) {
+    const ref = parseIconRef(entry.icon);
+    if (ref?.kind === "svg") local.delete(ref.name);
+    if (entry.iconDark) {
+      const dark = parseIconRef(entry.iconDark);
+      if (dark?.kind === "svg") local.delete(dark.name);
+    }
+  }
+  return [...local].sort((a, b) => a.localeCompare(b));
+}
 
 /**
  * Galerie aller genutzten Icons plus ungenutzte Dateien im Icon Ordner.
@@ -119,17 +136,10 @@ export class IconGalleryModal extends Modal {
       };
     }
 
-    const local = new Set(await this.store.listSvgNames());
+    const local = await this.store.listSvgNames();
     if (this.closed) return;
-    for (const [, entry] of [...used, ...extRules]) {
-      const ref = parseIconRef(entry.icon);
-      if (ref?.kind === "svg") local.delete(ref.name);
-      if (entry.iconDark) {
-        const dark = parseIconRef(entry.iconDark);
-        if (dark?.kind === "svg") local.delete(dark.name);
-      }
-    }
-    const unused = [...local].sort((a, b) => a.localeCompare(b));
+    const entries = [...used, ...extRules].map(([, entry]) => entry);
+    const unused = unusedSvgNames(local, entries);
     contentEl.createEl("div", {
       text: t("gal.unused", { count: unused.length }),
       cls: "obsidian-icon-picker-group",

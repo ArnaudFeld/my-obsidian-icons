@@ -4947,6 +4947,15 @@ function activeDoc() {
   return (_a = anyWindow.activeDocument) != null ? _a : document;
 }
 var REFRESH_CONCURRENCY2 = 6;
+function badgeKey(dark, icon, color, size) {
+  return `${dark ? "dark" : "light"}|${icon}|${color != null ? color : ""}|${size != null ? size : ""}`;
+}
+function isBadgeMutation(records) {
+  return records.every((record) => {
+    const target = record.target;
+    return !!target && typeof target.closest === "function" && target.closest(".obsidian-icon-explorer") !== null;
+  });
+}
 var ExplorerIcons = class {
   constructor(app, store, mapping, getAutoLight = () => true) {
     this.app = app;
@@ -5006,11 +5015,7 @@ var ExplorerIcons = class {
     if (!container || this.watchers.has(container))
       return;
     const observer = new MutationObserver((muts) => {
-      const own = muts.every((m) => {
-        const target = m.target;
-        return !!target && typeof target.closest === "function" && target.closest(".obsidian-icon-explorer") !== null;
-      });
-      if (!own)
+      if (!isBadgeMutation(muts))
         this.refreshSoon();
     });
     observer.observe(container, {
@@ -5032,7 +5037,7 @@ var ExplorerIcons = class {
     return this.mapping.resolve(path, file);
   }
   async renderRow(selfEl, path) {
-    var _a, _b, _c;
+    var _a;
     const raw = this.resolveForPath(path);
     if (!raw) {
       (_a = selfEl.querySelector(":scope > .obsidian-icon-explorer")) == null ? void 0 : _a.remove();
@@ -5062,7 +5067,7 @@ var ExplorerIcons = class {
       else
         selfEl.prepend(badge);
     }
-    const key = `${dark ? "dark" : "light"}|${entry.icon}|${(_b = entry.color) != null ? _b : ""}|${(_c = entry.size) != null ? _c : ""}`;
+    const key = badgeKey(dark, entry.icon, entry.color, entry.size);
     if (badge.dataset.ref === key)
       return;
     badge.dataset.ref = key;
@@ -5328,6 +5333,248 @@ var STRINGS = {
     "ex.invalid": "Import failed: not a valid file",
     "ex.writeErr": "Import aborted: write error, partial state remains",
     "ex.imported": "Imported: {entries} entries, {files} files ({skipped} skipped)"
+  },
+  fr: {
+    "cmd.reload": "Recharger les ic\xF4nes",
+    "cmd.gallery": "Ouvrir la galerie d'ic\xF4nes",
+    "cmd.check": "V\xE9rifier les ic\xF4nes",
+    "cmd.export": "Exporter les ic\xF4nes",
+    "cmd.import": "Importer les ic\xF4nes",
+    "cmd.pickActive": "Choisir une ic\xF4ne pour le fichier actif",
+    "cmd.insert": "Ins\xE9rer une ic\xF4ne dans la note",
+    "menu.change": "Changer l'ic\xF4ne",
+    "menu.remove": "Supprimer l'ic\xF4ne",
+    "menu.changeMany": "Changer les ic\xF4nes ({count})",
+    "menu.removeMany": "Supprimer les ic\xF4nes ({count})",
+    "menu.insert": "Ins\xE9rer une ic\xF4ne",
+    "notice.iconSaveFailed": "Impossible d'enregistrer l'ic\xF4ne",
+    "notice.iconsSaveFailed": "Impossible d'enregistrer les ic\xF4nes",
+    "notice.iconsRemoveFailed": "Impossible de supprimer les ic\xF4nes",
+    "notice.onlySvg": "Seules les r\xE9f\xE9rences SVG peuvent \xEAtre enregistr\xE9es",
+    "notice.notInCache": "Ic\xF4ne absente du cache, veuillez la res\xE9lectionner",
+    "notice.fileExists": "Le fichier existe d\xE9j\xE0",
+    "notice.fileSaveFailed": "Impossible d'enregistrer le fichier",
+    "notice.saved": "Enregistr\xE9 : {path}",
+    "notice.invalidExt": "Extension invalide",
+    "notice.conflict": "{names} est aussi actif et modifie les ic\xF4nes de l'explorateur, des chevauchements sont possibles.",
+    "notice.checkOk": "Ic\xF4nes ok : {used} attribu\xE9es, {unused} non utilis\xE9es",
+    "cat.devicon": "Devicon : {value}",
+    "cat.simple": "Simple : {value}",
+    "cat.selfhost": "Auto-h\xE9berg\xE9 : {value}",
+    "cat.builtinVersion": "int\xE9gr\xE9 (v2.17.0)",
+    "cat.builtinCurated": "int\xE9gr\xE9 (s\xE9lection)",
+    "cat.builtinDate": "int\xE9gr\xE9 ({date})",
+    "cat.off": "CDN d\xE9sactiv\xE9, fichiers et Lucide uniquement.",
+    "set.iconFolder.name": "Dossier d'ic\xF4nes",
+    "set.iconFolder.desc": "Chemin dans le coffre, sans barre oblique initiale.",
+    "set.mappingFile.name": "Fichier de mappage",
+    "set.mappingFile.desc": "Associe les chemins de l'explorateur aux ic\xF4nes, en JSON dans le coffre.",
+    "set.ext.name": "Ic\xF4nes par type de fichier",
+    "set.ext.desc": "Repli par extension, apr\xE8s chemin et frontmatter. Vide au d\xE9part.",
+    "set.ext.change": "Modifier",
+    "set.ext.add.name": "Ajouter une extension",
+    "set.ext.add.desc": "Sans point, par ex. md.",
+    "set.ext.pick": "Choisir",
+    "set.cdn.name": "Chargement depuis le CDN",
+    "set.cdn.desc": "R\xE9cup\xE8re les ic\xF4nes Devicon et Simple manquantes depuis jsdelivr et les met en cache sur cet appareil. Partage le cache avec l'auto-h\xE9bergement.",
+    "set.selfhost.name": "Ic\xF4nes auto-h\xE9berg\xE9es",
+    "set.selfhost.desc": "Marques homelab de selfh.st via CDN, CC-BY-4.0, mention dans le README.",
+    "set.stand.name": "Version du catalogue",
+    "set.stand.reload": "Recharger",
+    "set.cache.name": "Cache d'ic\xF4nes",
+    "set.cache.count": "{count} ic\xF4nes sur cet appareil.",
+    "set.cache.clear": "Vider",
+    "set.autoLight.name": "Variante claire automatique",
+    "set.autoLight.desc": "En mode sombre, utiliser la variante claire auto-h\xE9berg\xE9e si disponible. Un choix manuel prime toujours.",
+    "set.tabs.name": "Ic\xF4nes des onglets",
+    "set.tabs.desc": "Afficher les ic\xF4nes du mappage et du frontmatter dans la barre d'onglets.",
+    "set.titles.name": "Ic\xF4nes des titres",
+    "set.titles.desc": "Afficher les ic\xF4nes du mappage et du frontmatter devant le titre de la note.",
+    "set.export.name": "Exporter le paquet",
+    "set.export.desc": "Mappage et ic\xF4nes utilis\xE9es dans un fichier pour d'autres coffres.",
+    "set.export.btn": "Exporter",
+    "set.import.name": "Importer le paquet",
+    "set.import.desc": "Lire icons-export.json et \xE9crire les ic\xF4nes dans _assets/icons.",
+    "set.import.btn": "Importer",
+    "pick.title": "Choisir une ic\xF4ne",
+    "pick.search.name": "Rechercher",
+    "pick.search.ph": "Tapez un nom \u2026",
+    "pick.size.name": "Taille (optionnel)",
+    "pick.size.desc": "Laissez vide pour la valeur par d\xE9faut, un nombre simple compte en pixels.",
+    "pick.size.ph": "1.4em ou 20",
+    "pick.color": "Couleur",
+    "pick.colorOff": "Off",
+    "pick.colorDefault": "Par d\xE9faut",
+    "pick.colorNoneTip": "Aucune couleur, utiliser la valeur par d\xE9faut",
+    "pick.colorFree": "Choisir une couleur libre",
+    "pick.hex": "Valeur hex",
+    "pick.cancel": "Annuler",
+    "pick.saveFile": "Enregistrer comme fichier",
+    "pick.apply": "Appliquer",
+    "pick.dark": "Choisir l'ic\xF4ne sombre",
+    "pick.darkTip": "D\xE9finir une ic\xF4ne pour le mode sombre : cliquez ensuite sur une ic\xF4ne de la liste, elle ne s'affichera qu'en th\xE8me sombre.",
+    "pick.darkCancel": "Annuler la s\xE9lection",
+    "pick.darkHint": "Cliquez maintenant sur une ic\xF4ne de la liste \u2192 devient l'ic\xF4ne du mode sombre",
+    "pick.darkValue": "Mode sombre : {value}",
+    "pick.darkSame": "Mode sombre : comme l'ic\xF4ne claire",
+    "pick.none": "Aucun r\xE9sultat",
+    "pick.more": "\u2026 {count} de plus, affinez la recherche",
+    "pick.favToggle": "Basculer le favori",
+    "pick.contrast": "Faible contraste dans ce th\xE8me ({ratio}:1)",
+    "group.favorites": "Favoris",
+    "group.recent": "R\xE9cents",
+    "group.own": "Personnelles",
+    "group.devicon": "Devicon",
+    "group.simple": "Simple",
+    "group.selfhosted": "Auto-h\xE9berg\xE9",
+    "group.lucide": "Lucide",
+    "color.red": "Rouge",
+    "color.orange": "Orange",
+    "color.yellow": "Jaune",
+    "color.green": "Vert",
+    "color.cyan": "Cyan",
+    "color.blue": "Bleu",
+    "color.purple": "Violet",
+    "color.pink": "Rose",
+    "color.gray": "Gris",
+    "gal.title": "Galerie d'ic\xF4nes",
+    "gal.assigned": "Attribu\xE9es ({count} chemins, {rules} r\xE8gles)",
+    "gal.empty": "Aucune ic\xF4ne attribu\xE9e",
+    "gal.remove": "Supprimer",
+    "gal.ext": "Type de fichier ({count})",
+    "gal.unused": "Non utilis\xE9es ({count})",
+    "gal.allUsed": "Tout est utilis\xE9",
+    "gal.more": "\u2026 {count} de plus",
+    "gal.dark": "sombre : {value}",
+    "check.title": "V\xE9rifier les ic\xF4nes",
+    "check.summary": "{used} attribu\xE9es, {unused} non utilis\xE9es, {broken} cass\xE9es",
+    "ex.abort": "Export annul\xE9 : {path} existe d\xE9j\xE0",
+    "ex.done": "Export\xE9 : {path}",
+    "ex.tooBig": "\xC9chec de l'import : fichier trop volumineux",
+    "ex.invalid": "\xC9chec de l'import : fichier non valide",
+    "ex.writeErr": "Import interrompu : erreur d'\xE9criture, \xE9tat partiel conserv\xE9",
+    "ex.imported": "Import\xE9 : {entries} entr\xE9es, {files} fichiers ({skipped} ignor\xE9s)"
+  },
+  es: {
+    "cmd.reload": "Recargar iconos",
+    "cmd.gallery": "Abrir galer\xEDa de iconos",
+    "cmd.check": "Comprobar iconos",
+    "cmd.export": "Exportar iconos",
+    "cmd.import": "Importar iconos",
+    "cmd.pickActive": "Elegir icono para el archivo activo",
+    "cmd.insert": "Insertar icono en la nota",
+    "menu.change": "Cambiar icono",
+    "menu.remove": "Quitar icono",
+    "menu.changeMany": "Cambiar iconos ({count})",
+    "menu.removeMany": "Quitar iconos ({count})",
+    "menu.insert": "Insertar icono",
+    "notice.iconSaveFailed": "No se pudo guardar el icono",
+    "notice.iconsSaveFailed": "No se pudieron guardar los iconos",
+    "notice.iconsRemoveFailed": "No se pudieron quitar los iconos",
+    "notice.onlySvg": "Solo se pueden guardar referencias SVG",
+    "notice.notInCache": "El icono no est\xE1 en la cach\xE9, selecci\xF3nalo de nuevo",
+    "notice.fileExists": "El archivo ya existe",
+    "notice.fileSaveFailed": "No se pudo guardar el archivo",
+    "notice.saved": "Guardado: {path}",
+    "notice.invalidExt": "Extensi\xF3n no v\xE1lida",
+    "notice.conflict": "{names} tambi\xE9n est\xE1 activo y modifica los iconos del explorador, pueden surgir conflictos.",
+    "notice.checkOk": "Iconos ok: {used} asignados, {unused} sin usar",
+    "cat.devicon": "Devicon: {value}",
+    "cat.simple": "Simple: {value}",
+    "cat.selfhost": "Autoalojado: {value}",
+    "cat.builtinVersion": "integrado (v2.17.0)",
+    "cat.builtinCurated": "integrado (selecci\xF3n)",
+    "cat.builtinDate": "integrado ({date})",
+    "cat.off": "CDN desactivado, solo archivos y Lucide.",
+    "set.iconFolder.name": "Carpeta de iconos",
+    "set.iconFolder.desc": "Ruta en el ba\xFAl, sin barra inicial.",
+    "set.mappingFile.name": "Archivo de mapeo",
+    "set.mappingFile.desc": "Asigna rutas del explorador a iconos, como JSON en el ba\xFAl.",
+    "set.ext.name": "Iconos por tipo de archivo",
+    "set.ext.desc": "Respaldo por extensi\xF3n, tras ruta y frontmatter. Empieza vac\xEDo.",
+    "set.ext.change": "Cambiar",
+    "set.ext.add.name": "A\xF1adir extensi\xF3n",
+    "set.ext.add.desc": "Sin punto, p. ej. md.",
+    "set.ext.pick": "Elegir",
+    "set.cdn.name": "Cargar desde CDN",
+    "set.cdn.desc": "Descarga de jsdelivr los iconos Devicon y Simple que falten y los guarda en cach\xE9 en este dispositivo. Comparte la cach\xE9 con autoalojado.",
+    "set.selfhost.name": "Iconos autoalojados",
+    "set.selfhost.desc": "Marcas homelab de selfh.st v\xEDa CDN, CC-BY-4.0, cr\xE9dito en el README.",
+    "set.stand.name": "Versi\xF3n del cat\xE1logo",
+    "set.stand.reload": "Recargar",
+    "set.cache.name": "Cach\xE9 de iconos",
+    "set.cache.count": "{count} iconos en este dispositivo.",
+    "set.cache.clear": "Vaciar",
+    "set.autoLight.name": "Variante clara autom\xE1tica",
+    "set.autoLight.desc": "En modo oscuro usar la variante clara autoalojada si existe. Una elecci\xF3n manual siempre gana.",
+    "set.tabs.name": "Iconos en pesta\xF1as",
+    "set.tabs.desc": "Mostrar iconos de mapeo y frontmatter en la barra de pesta\xF1as.",
+    "set.titles.name": "Iconos en t\xEDtulos",
+    "set.titles.desc": "Mostrar iconos de mapeo y frontmatter delante del t\xEDtulo de la nota.",
+    "set.export.name": "Exportar paquete",
+    "set.export.desc": "Mapeo e iconos usados como archivo para otros ba\xFAles.",
+    "set.export.btn": "Exportar",
+    "set.import.name": "Importar paquete",
+    "set.import.desc": "Leer icons-export.json y escribir iconos en _assets/icons.",
+    "set.import.btn": "Importar",
+    "pick.title": "Elegir icono",
+    "pick.search.name": "Buscar",
+    "pick.search.ph": "Escribe un nombre \u2026",
+    "pick.size.name": "Tama\xF1o (opcional)",
+    "pick.size.desc": "D\xE9jalo vac\xEDo para el valor por defecto; un n\xFAmero simple cuenta como p\xEDxeles.",
+    "pick.size.ph": "1.4em o 20",
+    "pick.color": "Color",
+    "pick.colorOff": "Off",
+    "pick.colorDefault": "Por defecto",
+    "pick.colorNoneTip": "Sin color, usar el valor por defecto",
+    "pick.colorFree": "Elegir un color libre",
+    "pick.hex": "Valor hex",
+    "pick.cancel": "Cancelar",
+    "pick.saveFile": "Guardar como archivo",
+    "pick.apply": "Aplicar",
+    "pick.dark": "Elegir icono oscuro",
+    "pick.darkTip": "Define un icono para el modo oscuro: luego haz clic en un icono de la lista, solo se mostrar\xE1 en el tema oscuro.",
+    "pick.darkCancel": "Cancelar selecci\xF3n",
+    "pick.darkHint": "Ahora haz clic en un icono de la lista \u2192 ser\xE1 el icono del modo oscuro",
+    "pick.darkValue": "Modo oscuro: {value}",
+    "pick.darkSame": "Modo oscuro: igual que el icono claro",
+    "pick.none": "Sin resultados",
+    "pick.more": "\u2026 {count} m\xE1s, acota la b\xFAsqueda",
+    "pick.favToggle": "Alternar favorito",
+    "pick.contrast": "Bajo contraste en este tema ({ratio}:1)",
+    "group.favorites": "Favoritos",
+    "group.recent": "Recientes",
+    "group.own": "Propios",
+    "group.devicon": "Devicon",
+    "group.simple": "Simple",
+    "group.selfhosted": "Autoalojado",
+    "group.lucide": "Lucide",
+    "color.red": "Rojo",
+    "color.orange": "Naranja",
+    "color.yellow": "Amarillo",
+    "color.green": "Verde",
+    "color.cyan": "Cian",
+    "color.blue": "Azul",
+    "color.purple": "Morado",
+    "color.pink": "Rosa",
+    "color.gray": "Gris",
+    "gal.title": "Galer\xEDa de iconos",
+    "gal.assigned": "Asignados ({count} rutas, {rules} reglas)",
+    "gal.empty": "A\xFAn no hay iconos asignados",
+    "gal.remove": "Quitar",
+    "gal.ext": "Tipo de archivo ({count})",
+    "gal.unused": "Sin usar ({count})",
+    "gal.allUsed": "Todo en uso",
+    "gal.more": "\u2026 {count} m\xE1s",
+    "gal.dark": "oscuro: {value}",
+    "check.title": "Comprobar iconos",
+    "check.summary": "{used} asignados, {unused} sin usar, {broken} defectuosos",
+    "ex.abort": "Exportaci\xF3n cancelada: {path} ya existe",
+    "ex.done": "Exportado: {path}",
+    "ex.tooBig": "Error de importaci\xF3n: archivo demasiado grande",
+    "ex.invalid": "Error de importaci\xF3n: archivo no v\xE1lido",
+    "ex.writeErr": "Importaci\xF3n cancelada: error de escritura, queda un estado parcial",
+    "ex.imported": "Importado: {entries} entradas, {files} archivos ({skipped} omitidos)"
   }
 };
 function currentLanguage() {
@@ -5820,6 +6067,20 @@ var IconPickerModal = class extends import_obsidian7.Modal {
 // gallery.ts
 var import_obsidian8 = require("obsidian");
 var PAINT_CONCURRENCY = 6;
+function unusedSvgNames(localNames, entries) {
+  const local = new Set(localNames);
+  for (const entry of entries) {
+    const ref = parseIconRef(entry.icon);
+    if ((ref == null ? void 0 : ref.kind) === "svg")
+      local.delete(ref.name);
+    if (entry.iconDark) {
+      const dark = parseIconRef(entry.iconDark);
+      if ((dark == null ? void 0 : dark.kind) === "svg")
+        local.delete(dark.name);
+    }
+  }
+  return [...local].sort((a, b) => a.localeCompare(b));
+}
 var IconGalleryModal = class extends import_obsidian8.Modal {
   constructor(app, store, mapping, onChanged) {
     super(app);
@@ -5928,20 +6189,11 @@ var IconGalleryModal = class extends import_obsidian8.Modal {
         });
       };
     }
-    const local = new Set(await this.store.listSvgNames());
+    const local = await this.store.listSvgNames();
     if (this.closed)
       return;
-    for (const [, entry] of [...used, ...extRules]) {
-      const ref = parseIconRef(entry.icon);
-      if ((ref == null ? void 0 : ref.kind) === "svg")
-        local.delete(ref.name);
-      if (entry.iconDark) {
-        const dark = parseIconRef(entry.iconDark);
-        if ((dark == null ? void 0 : dark.kind) === "svg")
-          local.delete(dark.name);
-      }
-    }
-    const unused = [...local].sort((a, b) => a.localeCompare(b));
+    const entries = [...used, ...extRules].map(([, entry]) => entry);
+    const unused = unusedSvgNames(local, entries);
     contentEl.createEl("div", {
       text: t("gal.unused", { count: unused.length }),
       cls: "obsidian-icon-picker-group"

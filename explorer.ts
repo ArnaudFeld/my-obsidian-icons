@@ -13,6 +13,28 @@ function activeDoc(): Document {
 /** Gleichzeitige Zeilen beim Nachmalen, begrenzt Netz und DOM Last. */
 const REFRESH_CONCURRENCY = 6;
 
+/** Stand Schlüssel am Badge, damit nur echte Änderungen neu malen. */
+export function badgeKey(
+  dark: boolean,
+  icon: string,
+  color?: string,
+  size?: string,
+): string {
+  return `${dark ? "dark" : "light"}|${icon}|${color ?? ""}|${size ?? ""}`;
+}
+
+/** Eigene Badge Malungen erkennen, sonst Endlosschleife bei Missing. */
+export function isBadgeMutation(records: MutationRecord[]): boolean {
+  return records.every((record) => {
+    const target = record.target as HTMLElement | null;
+    return (
+      !!target &&
+      typeof target.closest === "function" &&
+      target.closest(".obsidian-icon-explorer") !== null
+    );
+  });
+}
+
 /**
  * Explorer Icons per MutationObserver, nach dem Muster von Iconic und
  * Iconize: Container suchen, data-path Zeilen ablaufen, Icon span vor den
@@ -87,15 +109,7 @@ export class ExplorerIcons {
     if (!container || this.watchers.has(container)) return;
     const observer = new MutationObserver((muts) => {
       // Eigene Badge Malungen ignorieren, sonst Endlosschleife bei Missing.
-      const own = muts.every((m) => {
-        const target = m.target as Element | null;
-        return (
-          !!target &&
-          typeof (target as HTMLElement).closest === "function" &&
-          (target as HTMLElement).closest(".obsidian-icon-explorer") !== null
-        );
-      });
-      if (!own) this.refreshSoon();
+      if (!isBadgeMutation(muts)) this.refreshSoon();
     });
     observer.observe(container, {
       subtree: true,
@@ -146,7 +160,7 @@ export class ExplorerIcons {
       if (inner) inner.insertAdjacentElement("beforebegin", badge);
       else selfEl.prepend(badge);
     }
-    const key = `${dark ? "dark" : "light"}|${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`;
+    const key = badgeKey(dark, entry.icon, entry.color, entry.size);
     if (badge.dataset.ref === key) return;
     badge.dataset.ref = key;
     badge.innerHTML = "";

@@ -55,6 +55,13 @@ export class TFolder extends TAbstractFile {}
 
 export class WorkspaceLeaf {}
 
+export class Modal {
+  app: App;
+  constructor(app: App) {
+    this.app = app;
+  }
+}
+
 export class EditorSuggest<T> {
   app: App;
   limit = 0;

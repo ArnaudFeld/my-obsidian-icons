@@ -80,9 +80,9 @@ All commands run on the phone. To insert on the go, put a command such as Insert
 
 ## Language
 
-The interface follows Obsidian's language setting and is available in German and English. This covers commands, context menus, the settings tab, the picker, the gallery and all messages. If Obsidian is set to another language, English is used.
+The interface follows Obsidian's language setting and is available in German, English, French and Spanish. This covers commands, context menus, the settings tab, the picker, the gallery and all messages. The slogan uses the same language. If Obsidian is set to another language, English is used.
 
-The slogan in the settings tab additionally knows French and Spanish. Warnings in the developer console stay German; those are messages for debugging, not interface text. This is the English version; the German one is in `README.md`.
+Warnings in the developer console stay German; those are messages for debugging, not interface text. This is the English version; the German one is in `README.md`.
 
 ## Starter icons
 

@@ -79,9 +79,9 @@ Alle Befehle laufen auf dem Handy. Zum Einfügen unterwegs lege unter Einstellun
 
 ## Sprache
 
-Die Oberfläche richtet sich nach der Spracheinstellung von Obsidian und liegt auf Deutsch und Englisch vor. Das betrifft Befehle, Kontextmenüs, den Einstellungs-Tab, den Picker, die Galerie und alle Meldungen. Steht Obsidian auf einer anderen Sprache, greift Englisch.
+Die Oberfläche richtet sich nach der Spracheinstellung von Obsidian und liegt auf Deutsch, Englisch, Französisch und Spanisch vor. Das betrifft Befehle, Kontextmenüs, den Einstellungs-Tab, den Picker, die Galerie und alle Meldungen. Der Slogan folgt derselben Sprache. Steht Obsidian auf einer anderen Sprache, greift Englisch.
 
-Der Slogan im Einstellungs-Tab kennt darüber hinaus Französisch und Spanisch. Die Warnungen in der Entwicklerkonsole bleiben deutsch, das sind Meldungen für die Fehlersuche und keine Texte der Oberfläche. Diese Fassung ist die deutsche, die englische liegt in `README.en.md`.
+Die Warnungen in der Entwicklerkonsole bleiben deutsch, das sind Meldungen für die Fehlersuche und keine Texte der Oberfläche. Diese Fassung ist die deutsche, die englische liegt in `README.en.md`.
 
 ## Starter Icons
 
