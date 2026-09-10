@@ -1,3 +1,7 @@
 node_modules/
 *.log
 .DS_Store
+
+# Sitzungsdateien aus externen Tools
+session*.md
+session*.json

@@ -7357,7 +7357,7 @@ var MoiSettingTab = class extends import_obsidian11.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     const head = containerEl.createDiv({ cls: "moi-settings-head" });
-    head.createEl("h2", { text: "M.O.I. \u2013 My Obsidian Icons." });
+    head.createEl("h2", { text: "M.O.I. \u2013 My Obsidian Icons" });
     head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
     new import_obsidian11.Setting(containerEl).setName(t("set.iconFolder.name")).setDesc(t("set.iconFolder.desc")).addText(
       (text) => text.setPlaceholder("_assets/icons").setValue(this.plugin.settings.iconFolder).onChange(async (value) => {

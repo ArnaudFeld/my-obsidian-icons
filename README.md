@@ -1,4 +1,4 @@
-# M.O.I. – My Obsidian Icons.
+# M.O.I. – My Obsidian Icons
 
 Der Slogan erscheint im Einstellungs-Tab in der Sprache von Obsidian: *Local, lightweight, yours.* (de *Lokal, leicht, deins.*, fr *Local, léger, à vous.*, es *Local, ligero, tuyo.*). Alle weiteren Sprachen bekommen die englische Fassung.
 
