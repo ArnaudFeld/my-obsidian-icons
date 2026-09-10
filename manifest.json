@@ -3,7 +3,7 @@
   "name": "M.O.I. – My Obsidian Icons",
   "version": "0.0.9",
   "minAppVersion": "1.0.0",
-  "description": "Eigene SVGs, Devicon, Simple und Lucide als {{icon:name}} in Notizen und per Rechtsklick im Explorer. Local, lightweight, yours.",
+  "description": "Custom SVGs, Devicon, Simple Icons and Lucide as {{icon:name}} in notes and via right-click in the explorer. Local, lightweight, yours.",
   "author": "arnaud",
   "isDesktopOnly": false
 }

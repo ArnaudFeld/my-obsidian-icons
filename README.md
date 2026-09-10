@@ -1,12 +1,12 @@
 # M.O.I. – My Obsidian Icons
 
-English: [README.en.md](README.en.md)
+Deutsch: [README.de.md](README.de.md)
 
-Der Slogan erscheint im Einstellungs-Tab in der Sprache von Obsidian: *Local, lightweight, yours.* (de *Lokal, leicht, deins.*, fr *Local, léger, à vous.*, es *Local, ligero, tuyo.*). Alle weiteren Sprachen bekommen die englische Fassung.
+The slogan appears in the settings tab in Obsidian's language: *Local, lightweight, yours.* (de *Lokal, leicht, deins.*, fr *Local, léger, à vous.*, es *Local, ligero, tuyo.*). All other languages get the English version.
 
-Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. Ohne Laufzeitabhängigkeiten.
+Custom SVGs, Devicon, Simple Icons and Lucide in notes and in the file explorer. No runtime dependencies.
 
-## Shortcode in Notizen
+## Shortcode in notes
 
 ```
 {{icon:name}}
@@ -21,14 +21,15 @@ Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. 
 {{icon:emoji:📁}}
 ```
 
-Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. Zweiter bis vierter Teil in beliebiger Reihenfolge: Größe, Farbe als Theme Name oder CSS Farbe, oder dunkle Variante mit `dark:`. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. `emoji:` zeigt ein Emoji Zeichen, ebenfalls ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie database.
+The default folder is `_assets/icons` and can be changed in the settings. Without a size, 1em applies; a plain number counts as pixels. Second to fourth part in any order: size, color as a theme name or CSS color, or a dark variant with `dark:`. `lucide:` uses the built-in Obsidian icons, no file needed. `emoji:` shows an emoji character, also without a file. While typing `{{icon:` the plugin suggests names with a preview, and Devicon search also understands tags like database.
 
-Fehlt eine Datei, zeigt das Plugin `[name]` mit Tooltip und schreibt eine Warnung in die Konsole.
+If a file is missing, the plugin shows `[name]` with a tooltip and writes a warning to the console.
 
-## Explorer Icons per Rechtsklick
+## Explorer icons via right-click
 
-Rechtsklick auf Datei oder Ordner, dann Icon ändern. Im Picker lassen sich Farbe und optionale Größe je Eintrag setzen, zum Beispiel Homelab auf 1.4em. Das geht auch per Rechtsklick in der geöffneten Notiz. Der Befehl Icon für aktive Datei wählen öffnet denselben Dialog und lässt sich unter Einstellungen, Hotkeys mit einem Kürzel belegen. Wer den Shortcode in den Text schreiben will, nimmt Rechtsklick, Icon einfügen oder den Befehl Icon in Notiz einfügen, ebenfalls mit Kürzel belegbar. Der Dialog zeigt Suche mit Vorschau über eigene SVGs, Devicon, Simple und Lucide. Danach eine Farbreihe mit neun Theme Farben wie bei Iconic, dazu keine und ein freier Hex Wähler. Icon entfernen löscht die Zuordnung. Mehrfachauswahl bekommt dasselbe Icon auf einmal.
-Gespeichert wird in `_assets/icon-mapping.json` im Vault, zum Beispiel:
+Right-click a file or folder, then Change icon. In the picker you can set a color and an optional size per entry, for example Homelab to 1.4em. The same works via right-click inside an open note. The command Choose icon for active file opens the same dialog and can be bound to a shortcut under Settings, Hotkeys. If you want the shortcode in the text, use right-click, Insert icon, or the command Insert icon into note, also assignable to a shortcut. The dialog shows search with a preview over your own SVGs, Devicon, Simple and Lucide. Below that a color row with nine theme colors like in Iconic, plus none and a free hex picker. Remove icon deletes the assignment. A multi-selection gets the same icon at once.
+
+It is stored in `_assets/icon-mapping.json` in the vault, for example:
 
 ```json
 {
@@ -37,61 +38,61 @@ Gespeichert wird in `_assets/icon-mapping.json` im Vault, zum Beispiel:
 }
 ```
 
-Die Kurzform `"Pfad": "devicon/docker"` ohne Farbe bleibt gültig. Umbenennen und Löschen pflegt die Datei mit, inklusive Kindern bei Ordnern. `iconDark` nennt eine Variante für das dunkle Theme, im Shortcode geht das als `{{icon:name|dark:simple/docker}}`.
+The short form `"path": "devicon/docker"` without a color stays valid. Renaming and deleting keeps the file up to date, including children for folders. `iconDark` names a variant for the dark theme; in the shortcode that is `{{icon:name|dark:simple/docker}}`.
 
-## Dateityp Icons
+## File type icons
 
-In den Einstellungen je Endung ein Icon als Rückfall nach Pfad und Frontmatter, zum Beispiel md auf lucide:file-text. Start leer, Endung ohne Punkt. Gilt für Explorer, Tabs und Titel, Ordner fallen nie darunter. Gespeichert unter `__ext__` in derselben Mapping Datei, Export und Galerie kennen den Bereich.
+In the settings, one icon per extension as a fallback after path and frontmatter, for example md to lucide:file-text. Starts empty, extension without a dot. Applies to explorer, tabs and titles; folders never fall under it. Stored under `__ext__` in the same mapping file; export and gallery know that section.
 
-## Tabs, Titel und Frontmatter
+## Tabs, titles and frontmatter
 
-Tableiste und Notiz Titel zeigen dasselbe Icon aus Mapping oder Frontmatter, je Bereich abschaltbar. Im Frontmatter gelten `icon`, `iconColor`, `iconSize` und `iconDark`, Frontmatter gewinnt gegen Mapping. Beim Bearbeiten der Quelle schlägt das Plugin Werte für `icon`, `iconColor` und `iconDark` vor.
+The tab bar and the note title show the same icon from mapping or frontmatter, switchable per area. In frontmatter, `icon`, `iconColor`, `iconSize` and `iconDark` apply, and frontmatter wins over mapping. When editing the source, the plugin suggests values for `icon`, `iconColor` and `iconDark`.
 
-## Export und Import
+## Export and import
 
-Die Befehle Icons exportieren und Icons importieren sowie die Knöpfe in den Einstellungen packen Mapping plus genutzte SVGs in eine `icons-export-YYYY-MM-DD.json` im Vault oder lesen sie ein. Vorhandene Dateien bleiben beim Import stehen, Dateien über 500 KB sowie mehr als 10 MB oder 500 Dateien pro Paket werden übersprungen, ebenso mehr als 5000 Mapping Einträge.
+The commands Export icons and Import icons, as well as the buttons in the settings, pack the mapping plus used SVGs into an `icons-export-YYYY-MM-DD.json` in the vault, or read it back. Existing files are kept during import; files over 500 KB, as well as more than 10 MB or 500 files per package, are skipped, as are more than 5000 mapping entries.
 
-Devicon Dateien mit genau einer Farbe werden bei gewählter Farbe umgefärbt, mehrfarbige und Verläufe behalten ihre Originalfarben. Das gilt auch für eigene SVGs und Simple Icons mit genau einer festen Farbe, zum Beispiel schwarze Pfade. Alles ohne feste Farbe folgt der gewählten Farbe über currentColor.
+Devicon files with exactly one color are recolored when a color is chosen; multi-colored ones and gradients keep their original colors. The same applies to your own SVGs and Simple Icons with exactly one fixed color, for example black paths. Anything without a fixed color follows the chosen color via currentColor.
 
-## CDN Nachladen
+## Loading from CDN
 
-In den Einstellungen lässt sich CDN Nachladen einschalten. Fehlt ein devicon oder simple Icon als Datei, lädt das Plugin es von jsdelivr und cacht es auf dem Gerät, begrenzt auf 150 Einträge und 1,5 MB. Fehlschläge versucht es nach 5 Minuten neu. Die Namenslisten kommen live aus devicon.json, slugs.md und selfh.st index.json, mit eingebautem Rückfall und Stand Anzeige plus Neu laden Knopf. Im Picker stehen alle Namen mit Wolkensymbol, die Auswahl lädt bei Bedarf nach. Offline gilt der Cache weiter. Über Als Datei speichern landet ein CDN Icon als SVG in _assets/icons, zum Beispiel zum Bearbeiten oder für Git.
+In the settings you can enable loading from CDN. If a devicon or simple icon is missing as a file, the plugin fetches it from jsdelivr and caches it on the device, limited to 150 entries and 1.5 MB. Failures are retried after 5 minutes. The name lists come live from devicon.json, slugs.md and the selfh.st index.json, with a built-in fallback plus a version display and a reload button. In the picker all names appear with a cloud symbol, and selecting one loads it on demand. Offline, the cache keeps working. Via Save as file, a CDN icon lands as an SVG in _assets/icons, for example for editing or for Git.
 
-Eigener Schalter für Self-Hosted Icons von selfh.st als `selfhosted:name`, etwa 2.400 Homelab Marken mit Tags. Im dunklen Theme automatisch die helle Variante wenn vorhanden und Helle Variante automatisch an ist, eine von Hand gewählte Dunkel Variante gewinnt immer.
+A separate switch covers self-hosted icons from selfh.st as `selfhosted:name`, around 2,400 homelab brands with tags. In the dark theme the light variant is used automatically when available, and the light variant is on by default; a manually chosen dark variant always wins.
 
-## Sync und Geräte
+## Sync and devices
 
-Der CDN Cache liegt in `data.json` und wird von Obsidian Sync mit synchronisiert, obwohl er pro Gerät gedacht ist. Bei geteilten Vaults also Größe und Traffic im Blick behalten, notfalls Icon Cache in den Einstellungen leeren.
+The CDN cache lives in `data.json` and is synced by Obsidian Sync, even though it is meant per device. For shared vaults, keep an eye on size and traffic; if needed, clear the icon cache in the settings.
 
-Die Mapping Datei ist für Sync gemacht, aber ohne Zusammenführung: Setzen zwei Geräte gleichzeitig verschiedene Icons, gewinnt jeweils der letzte Schreibende. Konflikt Kopien liest das Plugin nicht. Wird die Mapping Datei bei laufendem Plugin gelöscht, bleibt der Speicher erhalten und schreibt sich beim nächsten Setzen neu.
+The mapping file is made for sync, but without merging: if two devices set different icons at the same time, the last writer wins. The plugin does not read conflict copies. If the mapping file is deleted while the plugin is running, the in-memory state survives and is written again on the next set.
 
-## Picker Extras
+## Picker extras
 
-Der Picker zeigt oben Favoriten und Zuletzt verwendet, jeweils nur wenn vorhanden. Der Stern in jeder Zeile heftet ein Icon an oder löst es wieder. Über Dark-Icon wählen lässt sich eine Variante für das dunkle Theme festlegen, danach ein Icon aus der Liste anklicken. Bei schlechter Lesbarkeit der gewählten Farbe auf dem Theme Hintergrund warnt der Picker. Beide Listen liegen pro Gerät in den Plugin Daten.
+The picker shows favorites and recently used at the top, each only when present. The star in each row pins or unpins an icon. Via Choose dark icon you can set a variant for the dark theme, then click an icon in the list. If the chosen color is hard to read on the theme background, the picker warns. Both lists live per device in the plugin data.
 
-## Galerie und Konflikte
+## Gallery and conflicts
 
-Der Befehl Icon Galerie öffnen listet alle vergebenen Icons mit Pfad und Entfernen Knopf sowie ungenutzte Dateien im Icon Ordner. Der Befehl Icons prüfen meldet Mapping Einträge ohne Ziel und zählt ungenutzte Dateien, ohne Netz. Der Befehl Icons neu laden liest Ordner und Caches neu ein. Ist Iconic, Iconize oder Icon Folder gleichzeitig aktiv, zeigt das Plugin einmal pro Sitzung einen Hinweis, da alle um dieselben DOM Stellen konkurrieren.
+The command Open icon gallery lists all assigned icons with path and a remove button, plus unused files in the icon folder. The command Check icons reports mapping entries without a target and counts unused files, without network. The command Reload icons re-reads folders and caches. If Iconic, Iconize or Icon Folder is active at the same time, the plugin shows a notice once per session, since all of them compete for the same DOM spots.
 
-## Mobil
+## Mobile
 
-Alle Befehle laufen auf dem Handy. Zum Einfügen unterwegs lege unter Einstellungen, Symbolleiste einen Befehl wie Icon in Notiz einfügen auf die mobile Toolbar, Plugins können dort keine Knöpfe direkt anlegen. Rechtsklick heißt lange drücken.
+All commands run on the phone. To insert on the go, put a command such as Insert icon into note on the mobile toolbar under Settings, Toolbar; plugins cannot add buttons there directly. Right-click means long-press.
 
-## Sprache
+## Language
 
-Die Oberfläche richtet sich nach der Spracheinstellung von Obsidian und liegt auf Deutsch, Englisch, Französisch und Spanisch vor. Das betrifft Befehle, Kontextmenüs, den Einstellungs-Tab, den Picker, die Galerie und alle Meldungen. Der Slogan folgt derselben Sprache. Steht Obsidian auf einer anderen Sprache, greift Englisch.
+The interface follows Obsidian's language setting and is available in German, English, French and Spanish. This covers commands, context menus, the settings tab, the picker, the gallery and all messages. The slogan uses the same language. If Obsidian is set to another language, English is used.
 
-Die Warnungen in der Entwicklerkonsole bleiben deutsch, das sind Meldungen für die Fehlersuche und keine Texte der Oberfläche. Diese Fassung ist die deutsche, die englische liegt in `README.en.md`.
+Warnings in the developer console stay German; those are messages for debugging, not interface text. This is the English version; the German one is in `README.de.md`.
 
-## Starter Icons
+## Starter icons
 
-In `starter-icons/` liegen 30 Devicon Homelab Icons, 10 Simple Icons Marken sowie Dockhand, Technitium und AdGuard Home als Grundstock. Inhalt nach `_assets/icons/` in den Vault kopieren, dann gilt zum Beispiel {{icon:dockhand}}. Erzeugt mit `python3 scripts/fetch-icons.py`.
+`starter-icons/` holds 30 Devicon homelab icons, 10 Simple Icons brands, and Dockhand, Technitium and AdGuard Home as a base. Copy the contents to `_assets/icons/` in the vault, then for example {{icon:dockhand}} works. Generated with `python3 scripts/fetch-icons.py`.
 
-Lizenzen: Devicon steht unter MIT, Simple Icons unter CC0, Lucide unter ISC, selfh.st Icons unter CC-BY-4.0 mit Namensnennung an selfh.st. Marken und Logos gehören den jeweiligen Eigentümern und dienen nur der Kennzeichnung in der eigenen Doku.
+Licenses: Devicon is MIT, Simple Icons is CC0, Lucide is ISC, selfh.st icons are CC-BY-4.0 with attribution to selfh.st. Trademarks and logos belong to their respective owners and serve only to identify them in your own documentation.
 
 ## Install
 
 1. `npm install --legacy-peer-deps`
 2. `npm run build`
-3. Ordner mit `manifest.json`, `main.js` und `styles.css` nach `<Vault>/.obsidian/plugins/my-obsidian-icons/` kopieren
-4. Plugin in Obsidian aktivieren
+3. Copy the folder with `manifest.json`, `main.js` and `styles.css` to `<Vault>/.obsidian/plugins/my-obsidian-icons/`
+4. Enable the plugin in Obsidian
