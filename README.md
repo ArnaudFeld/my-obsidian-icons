@@ -1,5 +1,7 @@
 # M.O.I. – My Obsidian Icons
 
+English: [README.en.md](README.en.md)
+
 Der Slogan erscheint im Einstellungs-Tab in der Sprache von Obsidian: *Local, lightweight, yours.* (de *Lokal, leicht, deins.*, fr *Local, léger, à vous.*, es *Local, ligero, tuyo.*). Alle weiteren Sprachen bekommen die englische Fassung.
 
 Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. Ohne Laufzeitabhängigkeiten.
@@ -79,7 +81,7 @@ Alle Befehle laufen auf dem Handy. Zum Einfügen unterwegs lege unter Einstellun
 
 Die Oberfläche richtet sich nach der Spracheinstellung von Obsidian und liegt auf Deutsch und Englisch vor. Das betrifft Befehle, Kontextmenüs, den Einstellungs-Tab, den Picker, die Galerie und alle Meldungen. Steht Obsidian auf einer anderen Sprache, greift Englisch.
 
-Der Slogan im Einstellungs-Tab kennt darüber hinaus Französisch und Spanisch. Die Warnungen in der Entwicklerkonsole bleiben deutsch, das sind Meldungen für die Fehlersuche und keine Texte der Oberfläche. Diese README ist ebenfalls deutsch.
+Der Slogan im Einstellungs-Tab kennt darüber hinaus Französisch und Spanisch. Die Warnungen in der Entwicklerkonsole bleiben deutsch, das sind Meldungen für die Fehlersuche und keine Texte der Oberfläche. Diese Fassung ist die deutsche, die englische liegt in `README.en.md`.
 
 ## Starter Icons
 
