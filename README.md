@@ -75,6 +75,12 @@ Der Befehl Icon Galerie öffnen listet alle vergebenen Icons mit Pfad und Entfer
 
 Alle Befehle laufen auf dem Handy. Zum Einfügen unterwegs lege unter Einstellungen, Symbolleiste einen Befehl wie Icon in Notiz einfügen auf die mobile Toolbar, Plugins können dort keine Knöpfe direkt anlegen. Rechtsklick heißt lange drücken.
 
+## Sprache
+
+Die Oberfläche richtet sich nach der Spracheinstellung von Obsidian und liegt auf Deutsch und Englisch vor. Das betrifft Befehle, Kontextmenüs, den Einstellungs-Tab, den Picker, die Galerie und alle Meldungen. Steht Obsidian auf einer anderen Sprache, greift Englisch.
+
+Der Slogan im Einstellungs-Tab kennt darüber hinaus Französisch und Spanisch. Die Warnungen in der Entwicklerkonsole bleiben deutsch, das sind Meldungen für die Fehlersuche und keine Texte der Oberfläche. Diese README ist ebenfalls deutsch.
+
 ## Starter Icons
 
 In `starter-icons/` liegen 30 Devicon Homelab Icons, 10 Simple Icons Marken sowie Dockhand, Technitium und AdGuard Home als Grundstock. Inhalt nach `_assets/icons/` in den Vault kopieren, dann gilt zum Beispiel {{icon:dockhand}}. Erzeugt mit `python3 scripts/fetch-icons.py`.
