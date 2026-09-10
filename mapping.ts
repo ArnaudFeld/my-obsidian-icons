@@ -104,7 +104,7 @@ export class MappingStore {
         this.normalizeExtKeys();
       }
     } catch {
-      console.warn("[inline-svg-icons] Mapping Datei ungültig, Stand behalten");
+      console.warn("[moi] Mapping Datei ungültig, Stand behalten");
     }
   }
 

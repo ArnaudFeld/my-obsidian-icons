@@ -41,7 +41,7 @@ import { exportIcons, importIcons } from "./exchange";
 import { CdnCache, DEVICON_NAMES, SIMPLE_CDN_SLUGS, fetchSimpleSlugs, loadCatalogs, catalogStand, clearCatalogCaches, selfhostLightRefs } from "./cdn";
 import { SELFHOST_DATE } from "./selfhost-catalog";
 
-interface InlineSvgIconsSettings {
+interface MoiSettings {
   iconFolder: string;
   mappingFile: string;
   cdnEnabled: boolean;
@@ -52,7 +52,7 @@ interface InlineSvgIconsSettings {
 }
 
 interface PluginEnvelope {
-  settings?: InlineSvgIconsSettings;
+  settings?: MoiSettings;
   cdnCache?: Record<string, string>;
   recentIcons?: string[];
   favoriteIcons?: string[];
@@ -62,7 +62,7 @@ const RECENT_LIMIT = 10;
 const FAVORITE_LIMIT = 200;
 const CONFLICT_IDS = ["iconic", "obsidian-iconize", "obsidian-icon-folder"];
 
-const DEFAULT_SETTINGS: InlineSvgIconsSettings = {
+const DEFAULT_SETTINGS: MoiSettings = {
   iconFolder: "_assets/icons",
   mappingFile: "_assets/icon-mapping.json",
   cdnEnabled: false,
@@ -224,8 +224,8 @@ function buildIconExtension(
   );
 }
 
-export default class InlineSvgIconsPlugin extends Plugin {
-  settings: InlineSvgIconsSettings = { ...DEFAULT_SETTINGS };
+export default class MoiPlugin extends Plugin {
+  settings: MoiSettings = { ...DEFAULT_SETTINGS };
   private icons!: IconStore;
   private mapping!: MappingStore;
   private explorer!: ExplorerIcons;
@@ -458,11 +458,12 @@ export default class InlineSvgIconsPlugin extends Plugin {
       }),
     );
 
-    this.addSettingTab(new InlineSvgIconsSettingTab(this.app, this));
+    this.addSettingTab(new MoiSettingTab(this.app, this));
   }
 
   onunload(): void {
     window.clearTimeout(this.metaTimer);
+    window.clearTimeout(this.settingsTimer);
     this.cdn?.flush();
     void this.saveAll();
     void this.mapping?.flush();
@@ -483,7 +484,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
     const found = CONFLICT_IDS.filter((id) => id in plugins);
     if (found.length > 0) {
       new Notice(
-        `Inline SVG Icons: ${found.join(", ")} ist auch aktiv und verändert Explorer Icons, es kann zu Überschneidungen kommen.`,
+        `M.O.I.: ${found.join(", ")} ist auch aktiv und verändert Explorer Icons, es kann zu Überschneidungen kommen.`,
         9000,
       );
     }
@@ -764,6 +765,8 @@ export default class InlineSvgIconsPlugin extends Plugin {
   }
 
   /** CDN Icon aus dem Cache als SVG Datei in den Icon Ordner schreiben. */
+  private savingFiles = new Set<string>();
+
   private async saveCdnToFile(ref: string): Promise<void> {
     const parsed = parseIconRef(ref);
     if (!parsed || parsed.kind !== "svg") {
@@ -780,14 +783,24 @@ export default class InlineSvgIconsPlugin extends Plugin {
       new Notice("Datei existiert bereits");
       return;
     }
-    const slash = path.lastIndexOf("/");
-    if (slash > 0) {
-      const dir = path.slice(0, slash);
-      if (!this.app.vault.getAbstractFileByPath(dir)) {
-        await this.app.vault.adapter.mkdir(dir);
+    // Doppelklick Guard: zweiter Aufruf während dem ersten läuft abweisen.
+    if (this.savingFiles.has(path)) return;
+    this.savingFiles.add(path);
+    try {
+      const slash = path.lastIndexOf("/");
+      if (slash > 0) {
+        const dir = path.slice(0, slash);
+        if (!this.app.vault.getAbstractFileByPath(dir)) {
+          await this.app.vault.adapter.mkdir(dir);
+        }
       }
+      await this.app.vault.create(path, svg);
+    } catch {
+      new Notice("Datei konnte nicht gespeichert werden");
+      return;
+    } finally {
+      this.savingFiles.delete(path);
     }
-    await this.app.vault.create(path, svg);
     this.icons.invalidatePath(path);
     this.explorer.refreshSoon();
     new Notice(`Gespeichert: ${path}`);
@@ -1011,7 +1024,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
     try {
       raw = await this.loadData();
     } catch {
-      console.warn("[inline-svg-icons] data.json ungültig, Standard geladen");
+      console.warn("[moi] data.json ungültig, Standard geladen");
     }
     if (this.isEnvelope(raw)) {
       this.settings = { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) };
@@ -1021,7 +1034,7 @@ export default class InlineSvgIconsPlugin extends Plugin {
     } else {
       this.settings = {
         ...DEFAULT_SETTINGS,
-        ...((raw as Partial<InlineSvgIconsSettings>) ?? {}),
+        ...((raw as Partial<MoiSettings>) ?? {}),
       };
       this.cdnData = {};
       this.recentIcons = [];
@@ -1064,12 +1077,22 @@ export default class InlineSvgIconsPlugin extends Plugin {
     this.refreshEditorIcons();
     this.app.workspace.updateOptions();
   }
+
+  /** Textfelder entprellen, ein Save pro Tipp-Pause reicht. */
+  private settingsTimer = 0;
+
+  saveSettingsSoon(): void {
+    window.clearTimeout(this.settingsTimer);
+    this.settingsTimer = window.setTimeout(() => {
+      void this.saveSettings();
+    }, 500);
+  }
 }
 
-class InlineSvgIconsSettingTab extends PluginSettingTab {
+class MoiSettingTab extends PluginSettingTab {
   constructor(
     app: App,
-    private plugin: InlineSvgIconsPlugin,
+    private plugin: MoiPlugin,
   ) {
     super(app, plugin);
   }
@@ -1087,7 +1110,7 @@ class InlineSvgIconsSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.iconFolder =
               normalizeFolder(value) || DEFAULT_SETTINGS.iconFolder;
-            await this.plugin.saveSettings();
+            this.plugin.saveSettingsSoon();
           }),
       );
     new Setting(containerEl)
@@ -1100,7 +1123,7 @@ class InlineSvgIconsSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.mappingFile =
               normalizeFolder(value) || DEFAULT_SETTINGS.mappingFile;
-            await this.plugin.saveSettings();
+            this.plugin.saveSettingsSoon();
           }),
       );
     new Setting(containerEl)

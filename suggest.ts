@@ -212,6 +212,9 @@ export class IconSuggest extends EditorSuggest<SuggestItem> {
     if (tokenStart < 0) return;
     const from = { line: cursor.line, ch: tokenStart };
     let endCh = cursor.ch;
+    // Rest Token nach Cursor mitnehmen, sonst bleibt Müll wie o}} stehen.
+    const trail = /^[A-Za-z0-9_\-/:.]*/.exec(line.slice(endCh))?.[0] ?? "";
+    endCh += trail.length;
     if (line.slice(endCh, endCh + 2) === "}}") endCh += 2;
     const after = line.slice(endCh);
     const suffix = after.length > 0 && !/^\s/.test(after) ? " " : "";
@@ -266,7 +269,7 @@ export class FrontmatterSuggest extends EditorSuggest<SuggestItem> {
     return {
       start: { line: cursor.line, ch: cursor.ch - m[2].length },
       end: cursor,
-      query: `${before.includes("Color") ? "color:" : "dark:"}${m[2] ?? ""}`,
+      query: `${m[1].includes("Color") ? "color:" : "dark:"}${m[2] ?? ""}`,
     };
   }
 

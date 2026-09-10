@@ -1,6 +1,9 @@
 import { App, Modal } from "obsidian";
-import { IconStore, parseIconRef, renderIconInto } from "./icons";
+import { IconRef, IconStore, parseIconRef, renderIconInto } from "./icons";
 import { MappingStore } from "./mapping";
+
+/** Gleichzeitige Vorschaubilder, wie im Explorer begrenzt. */
+const PAINT_CONCURRENCY = 6;
 
 /**
  * Galerie aller genutzten Icons plus ungenutzte Dateien im Icon Ordner.
@@ -16,12 +19,30 @@ export class IconGalleryModal extends Modal {
     super(app);
   }
 
+  private closed = true;
+
   async onOpen(): Promise<void> {
+    this.closed = false;
     await this.render();
   }
 
   onClose(): void {
+    this.closed = true;
     this.contentEl.empty();
+  }
+
+  /** Vorschaubilder gebündelt malen, Abbruch bei Schließen. */
+  private async paintAll(
+    paints: { el: HTMLElement; ref: IconRef; color?: string }[],
+  ): Promise<void> {
+    for (let i = 0; i < paints.length; i += PAINT_CONCURRENCY) {
+      if (this.closed) return;
+      await Promise.all(
+        paints.slice(i, i + PAINT_CONCURRENCY).map(({ el, ref, color }) =>
+          renderIconInto(el, ref, this.store, { color }),
+        ),
+      );
+    }
   }
 
   private async render(): Promise<void> {
@@ -42,11 +63,12 @@ export class IconGalleryModal extends Modal {
         cls: "obsidian-icon-picker-more",
       });
     }
+    const paints: { el: HTMLElement; ref: IconRef; color?: string }[] = [];
     for (const [path, entry] of used) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
       const ref = parseIconRef(entry.icon);
-      if (ref) await renderIconInto(preview, ref, this.store, { color: entry.color });
+      if (ref) paints.push({ el: preview, ref, color: entry.color });
       else preview.textContent = "?";
       const label = row.createDiv({ cls: "obsidian-icon-picker-name" });
       label.createDiv({ text: path });
@@ -67,16 +89,15 @@ export class IconGalleryModal extends Modal {
       };
     }
 
-    const ext = this.mapping.extEntries();
     contentEl.createEl("div", {
-      text: `Dateityp (${ext.length})`,
+      text: `Dateityp (${extRules.length})`,
       cls: "obsidian-icon-picker-group",
     });
-    for (const [name, entry] of ext) {
+    for (const [name, entry] of extRules) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
       const ref = parseIconRef(entry.icon);
-      if (ref) await renderIconInto(preview, ref, this.store, { color: entry.color });
+      if (ref) paints.push({ el: preview, ref, color: entry.color });
       else preview.textContent = "?";
       const label = row.createDiv({ cls: "obsidian-icon-picker-name" });
       label.createDiv({ text: `*.${name}` });
@@ -98,7 +119,8 @@ export class IconGalleryModal extends Modal {
     }
 
     const local = new Set(await this.store.listSvgNames());
-    for (const [, entry] of [...used, ...this.mapping.extEntries()]) {
+    if (this.closed) return;
+    for (const [, entry] of [...used, ...extRules]) {
       const ref = parseIconRef(entry.icon);
       if (ref?.kind === "svg") local.delete(ref.name);
       if (entry.iconDark) {
@@ -120,9 +142,7 @@ export class IconGalleryModal extends Modal {
     for (const name of unused.slice(0, 100)) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
-      const svg = await this.store.getSvg(name);
-      if (svg) preview.innerHTML = svg;
-      else preview.textContent = "?";
+      paints.push({ el: preview, ref: { kind: "svg", name } });
       row.createDiv({ text: name, cls: "obsidian-icon-picker-name" });
     }
     if (unused.length > 100) {
@@ -131,6 +151,7 @@ export class IconGalleryModal extends Modal {
         cls: "obsidian-icon-picker-more",
       });
     }
+    await this.paintAll(paints);
   }
 }
 

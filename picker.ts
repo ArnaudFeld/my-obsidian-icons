@@ -72,6 +72,7 @@ export class IconPickerModal extends Modal {
   private localRefs = new Set<string>();
   private filled = false;
   private searchTimer = 0;
+  private previewSeq = 0;
   private listEl!: HTMLElement;
   private saveBtn!: HTMLButtonElement;
   private saveFileBtn!: HTMLButtonElement;
@@ -372,6 +373,7 @@ export class IconPickerModal extends Modal {
   }
 
   private async updatePreview(): Promise<void> {
+    const seq = ++this.previewSeq;
     const box = this.previewBox;
     if (!box) return;
     box.empty();
@@ -385,6 +387,8 @@ export class IconPickerModal extends Modal {
     const ref = parseIconRef(this.selected);
     if (!ref) return;
     await renderIconInto(box, ref, this.store, { color: this.color });
+    // Später Aufruf nach neuerer Auswahl: Vorschau gehört wem anders.
+    if (seq !== this.previewSeq) return;
     box.addClass("obsidian-icon-picker-bigpreview");
   }
 
@@ -526,6 +530,7 @@ export class IconPickerModal extends Modal {
       return;
     }
     const svg = await this.store.getSvg(item.ref);
+    if (!el.isConnected) return;
     if (svg) el.innerHTML = svg;
     else el.textContent = "?";
   }

@@ -6,7 +6,7 @@ const prod = process.argv[2] === "production";
 
 const context = await esbuild.context({
   banner: {
-    js: "/* Inline SVG Icons - no external runtime dependencies */",
+    js: "/* M.O.I. – My Obsidian Icons - no external runtime dependencies */",
   },
   entryPoints: ["main.ts"],
   bundle: true,

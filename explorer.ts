@@ -19,8 +19,7 @@ const REFRESH_CONCURRENCY = 6;
  * Titel setzen. Quelle ist die Mapping JSON, Darstellung der IconStore.
  */
 export class ExplorerIcons {
-  private observers: MutationObserver[] = [];
-  private containers = new Set<HTMLElement>();
+  private watchers = new Map<HTMLElement, MutationObserver>();
   private timer = 0;
 
   constructor(
@@ -39,9 +38,8 @@ export class ExplorerIcons {
   }
 
   stop(): void {
-    for (const observer of this.observers) observer.disconnect();
-    this.observers = [];
-    this.containers.clear();
+    for (const observer of this.watchers.values()) observer.disconnect();
+    this.watchers.clear();
     window.clearTimeout(this.timer);
     for (const badge of Array.from(
       activeDoc().querySelectorAll(".obsidian-icon-explorer"),
@@ -56,6 +54,13 @@ export class ExplorerIcons {
   }
 
   async refresh(): Promise<void> {
+    // Getrennte Container abbauen, sonst Leak bei Leaf Wechsel.
+    for (const [container, observer] of this.watchers) {
+      if (!container.isConnected) {
+        observer.disconnect();
+        this.watchers.delete(container);
+      }
+    }
     this.app.workspace
       .getLeavesOfType("file-explorer")
       .forEach((leaf) => this.watchLeaf(leaf));
@@ -79,8 +84,7 @@ export class ExplorerIcons {
     const container = leaf.view.containerEl.querySelector(
       ":scope > .nav-files-container > div",
     ) as HTMLElement | null;
-    if (!container || this.containers.has(container)) return;
-    this.containers.add(container);
+    if (!container || this.watchers.has(container)) return;
     const observer = new MutationObserver((muts) => {
       // Eigene Badge Malungen ignorieren, sonst Endlosschleife bei Missing.
       const own = muts.every((m) => {
@@ -99,7 +103,7 @@ export class ExplorerIcons {
       attributes: true,
       attributeFilter: ["data-path", "class"],
     });
-    this.observers.push(observer);
+    this.watchers.set(container, observer);
   }
 
   /** Rangfolge wie in Tabs: Frontmatter, dann Mapping Pfad und Dateityp. */

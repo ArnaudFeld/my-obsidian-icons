@@ -433,7 +433,7 @@ export function renderMissing(el: HTMLElement, label: string): void {
   el.addClass("obsidian-icon-missing");
   el.setAttribute("title", `Icon nicht gefunden: ${label}`);
   el.textContent = `[${label}]`;
-  console.warn(`[inline-svg-icons] nicht gefunden: ${label}`);
+  console.warn(`[moi] nicht gefunden: ${label}`);
 }
 
 /**

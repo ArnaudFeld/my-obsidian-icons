@@ -1,4 +1,4 @@
-/* Inline SVG Icons - no external runtime dependencies */
+/* M.O.I. – My Obsidian Icons - no external runtime dependencies */
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -21,7 +21,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => InlineSvgIconsPlugin
+  default: () => MoiPlugin
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian10 = require("obsidian");
@@ -378,7 +378,7 @@ function renderMissing(el, label) {
   el.addClass("obsidian-icon-missing");
   el.setAttribute("title", `Icon nicht gefunden: ${label}`);
   el.textContent = `[${label}]`;
-  console.warn(`[inline-svg-icons] nicht gefunden: ${label}`);
+  console.warn(`[moi] nicht gefunden: ${label}`);
 }
 async function renderIconInto(el, ref, store, opts) {
   el.addClass("obsidian-icon-inline");
@@ -516,7 +516,7 @@ var MappingStore = class _MappingStore {
         this.normalizeExtKeys();
       }
     } catch (e) {
-      console.warn("[inline-svg-icons] Mapping Datei ung\xFCltig, Stand behalten");
+      console.warn("[moi] Mapping Datei ung\xFCltig, Stand behalten");
     }
   }
   /** Alte großgeschriebene Endungen im Speicher heilen, nächster Save sichert. */
@@ -4953,8 +4953,7 @@ var ExplorerIcons = class {
     this.store = store;
     this.mapping = mapping;
     this.getAutoLight = getAutoLight;
-    this.observers = [];
-    this.containers = /* @__PURE__ */ new Set();
+    this.watchers = /* @__PURE__ */ new Map();
     this.timer = 0;
   }
   start() {
@@ -4963,10 +4962,9 @@ var ExplorerIcons = class {
     this.refreshSoon();
   }
   stop() {
-    for (const observer of this.observers)
+    for (const observer of this.watchers.values())
       observer.disconnect();
-    this.observers = [];
-    this.containers.clear();
+    this.watchers.clear();
     window.clearTimeout(this.timer);
     for (const badge of Array.from(
       activeDoc().querySelectorAll(".obsidian-icon-explorer")
@@ -4979,6 +4977,12 @@ var ExplorerIcons = class {
     this.timer = window.setTimeout(() => void this.refresh(), 80);
   }
   async refresh() {
+    for (const [container, observer] of this.watchers) {
+      if (!container.isConnected) {
+        observer.disconnect();
+        this.watchers.delete(container);
+      }
+    }
     this.app.workspace.getLeavesOfType("file-explorer").forEach((leaf) => this.watchLeaf(leaf));
     const rows = Array.from(
       activeDoc().querySelectorAll(
@@ -4999,9 +5003,8 @@ var ExplorerIcons = class {
     const container = leaf.view.containerEl.querySelector(
       ":scope > .nav-files-container > div"
     );
-    if (!container || this.containers.has(container))
+    if (!container || this.watchers.has(container))
       return;
-    this.containers.add(container);
     const observer = new MutationObserver((muts) => {
       const own = muts.every((m) => {
         const target = m.target;
@@ -5016,7 +5019,7 @@ var ExplorerIcons = class {
       attributes: true,
       attributeFilter: ["data-path", "class"]
     });
-    this.observers.push(observer);
+    this.watchers.set(container, observer);
   }
   /** Rangfolge wie in Tabs: Frontmatter, dann Mapping Pfad und Dateityp. */
   resolveForPath(path) {
@@ -5113,6 +5116,7 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     this.localRefs = /* @__PURE__ */ new Set();
     this.filled = false;
     this.searchTimer = 0;
+    this.previewSeq = 0;
     this.selected = (_a = initial == null ? void 0 : initial.icon) != null ? _a : null;
     this.color = initial == null ? void 0 : initial.color;
     this.size = initial == null ? void 0 : initial.size;
@@ -5368,6 +5372,7 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     void this.updatePreview();
   }
   async updatePreview() {
+    const seq = ++this.previewSeq;
     const box = this.previewBox;
     if (!box)
       return;
@@ -5383,6 +5388,8 @@ var IconPickerModal = class extends import_obsidian6.Modal {
     if (!ref)
       return;
     await renderIconInto(box, ref, this.store, { color: this.color });
+    if (seq !== this.previewSeq)
+      return;
     box.addClass("obsidian-icon-picker-bigpreview");
   }
   renderList() {
@@ -5517,6 +5524,8 @@ var IconPickerModal = class extends import_obsidian6.Modal {
       return;
     }
     const svg = await this.store.getSvg(item.ref);
+    if (!el.isConnected)
+      return;
     if (svg)
       el.innerHTML = svg;
     else
@@ -5526,18 +5535,34 @@ var IconPickerModal = class extends import_obsidian6.Modal {
 
 // gallery.ts
 var import_obsidian7 = require("obsidian");
+var PAINT_CONCURRENCY = 6;
 var IconGalleryModal = class extends import_obsidian7.Modal {
   constructor(app, store, mapping, onChanged) {
     super(app);
     this.store = store;
     this.mapping = mapping;
     this.onChanged = onChanged;
+    this.closed = true;
   }
   async onOpen() {
+    this.closed = false;
     await this.render();
   }
   onClose() {
+    this.closed = true;
     this.contentEl.empty();
+  }
+  /** Vorschaubilder gebündelt malen, Abbruch bei Schließen. */
+  async paintAll(paints) {
+    for (let i = 0; i < paints.length; i += PAINT_CONCURRENCY) {
+      if (this.closed)
+        return;
+      await Promise.all(
+        paints.slice(i, i + PAINT_CONCURRENCY).map(
+          ({ el, ref, color }) => renderIconInto(el, ref, this.store, { color })
+        )
+      );
+    }
   }
   async render() {
     const { contentEl } = this;
@@ -5556,12 +5581,13 @@ var IconGalleryModal = class extends import_obsidian7.Modal {
         cls: "obsidian-icon-picker-more"
       });
     }
+    const paints = [];
     for (const [path, entry] of used) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
       const ref = parseIconRef(entry.icon);
       if (ref)
-        await renderIconInto(preview, ref, this.store, { color: entry.color });
+        paints.push({ el: preview, ref, color: entry.color });
       else
         preview.textContent = "?";
       const label = row.createDiv({ cls: "obsidian-icon-picker-name" });
@@ -5585,17 +5611,16 @@ var IconGalleryModal = class extends import_obsidian7.Modal {
         });
       };
     }
-    const ext = this.mapping.extEntries();
     contentEl.createEl("div", {
-      text: `Dateityp (${ext.length})`,
+      text: `Dateityp (${extRules.length})`,
       cls: "obsidian-icon-picker-group"
     });
-    for (const [name, entry] of ext) {
+    for (const [name, entry] of extRules) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
       const ref = parseIconRef(entry.icon);
       if (ref)
-        await renderIconInto(preview, ref, this.store, { color: entry.color });
+        paints.push({ el: preview, ref, color: entry.color });
       else
         preview.textContent = "?";
       const label = row.createDiv({ cls: "obsidian-icon-picker-name" });
@@ -5620,7 +5645,9 @@ var IconGalleryModal = class extends import_obsidian7.Modal {
       };
     }
     const local = new Set(await this.store.listSvgNames());
-    for (const [, entry] of [...used, ...this.mapping.extEntries()]) {
+    if (this.closed)
+      return;
+    for (const [, entry] of [...used, ...extRules]) {
       const ref = parseIconRef(entry.icon);
       if ((ref == null ? void 0 : ref.kind) === "svg")
         local.delete(ref.name);
@@ -5644,11 +5671,7 @@ var IconGalleryModal = class extends import_obsidian7.Modal {
     for (const name of unused.slice(0, 100)) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
-      const svg = await this.store.getSvg(name);
-      if (svg)
-        preview.innerHTML = svg;
-      else
-        preview.textContent = "?";
+      paints.push({ el: preview, ref: { kind: "svg", name } });
       row.createDiv({ text: name, cls: "obsidian-icon-picker-name" });
     }
     if (unused.length > 100) {
@@ -5657,6 +5680,7 @@ var IconGalleryModal = class extends import_obsidian7.Modal {
         cls: "obsidian-icon-picker-more"
       });
     }
+    await this.paintAll(paints);
   }
 };
 var IconCheckModal = class extends import_obsidian7.Modal {
@@ -5823,7 +5847,7 @@ var IconSuggest = class extends import_obsidian8.EditorSuggest {
     });
   }
   selectSuggestion(item) {
-    var _a;
+    var _a, _b, _c;
     const ctx = this.context;
     if (!ctx)
       return;
@@ -5836,6 +5860,8 @@ var IconSuggest = class extends import_obsidian8.EditorSuggest {
       return;
     const from = { line: cursor.line, ch: tokenStart };
     let endCh = cursor.ch;
+    const trail = (_c = (_b = /^[A-Za-z0-9_\-/:.]*/.exec(line.slice(endCh))) == null ? void 0 : _b[0]) != null ? _c : "";
+    endCh += trail.length;
     if (line.slice(endCh, endCh + 2) === "}}")
       endCh += 2;
     const after = line.slice(endCh);
@@ -5884,7 +5910,7 @@ var FrontmatterSuggest = class extends import_obsidian8.EditorSuggest {
     return {
       start: { line: cursor.line, ch: cursor.ch - m[2].length },
       end: cursor,
-      query: `${before.includes("Color") ? "color:" : "dark:"}${(_b = m[2]) != null ? _b : ""}`
+      query: `${m[1].includes("Color") ? "color:" : "dark:"}${(_b = m[2]) != null ? _b : ""}`
     };
   }
   async getSuggestions(ctx) {
@@ -5993,6 +6019,51 @@ function isPackage(value) {
   const pkg = value;
   return pkg.version === 1 && typeof pkg.mapping === "object" && pkg.mapping !== null && typeof pkg.files === "object" && pkg.files !== null;
 }
+function collectImportEntries(mapping, maxEntries) {
+  let entries = 0;
+  let skipped = 0;
+  const pathItems = [];
+  for (const [path, value] of Object.entries(mapping)) {
+    if (path === EXT_KEY)
+      continue;
+    if (!path || path.startsWith("/") || path.split("/").includes("..")) {
+      skipped++;
+      continue;
+    }
+    const entry = normalizeEntry(value);
+    if (!entry || !parseIconRef(entry.icon)) {
+      skipped++;
+      continue;
+    }
+    if (entries >= maxEntries) {
+      skipped++;
+      continue;
+    }
+    pathItems.push([path, entry]);
+    entries++;
+  }
+  const extItems = [];
+  const extSection = mapping[EXT_KEY];
+  if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
+    for (const [raw, value] of Object.entries(
+      extSection
+    )) {
+      const ext = normalizeExt(raw);
+      const entry = normalizeEntry(value);
+      if (!ext || !entry || !parseIconRef(entry.icon)) {
+        skipped++;
+        continue;
+      }
+      if (entries >= maxEntries) {
+        skipped++;
+        continue;
+      }
+      extItems.push([ext, entry]);
+      entries++;
+    }
+  }
+  return { pathItems, extItems, entries, skipped };
+}
 function importIcons(app, store, mapping, getFolder, onDone) {
   const input = document.createElement("input");
   input.type = "file";
@@ -6045,47 +6116,13 @@ function importIcons(app, store, mapping, getFolder, onDone) {
           written++;
           writtenBytes += svg.length;
         }
-        let entries = 0;
-        const pathItems = [];
-        for (const [path, value] of Object.entries(pkg.mapping)) {
-          if (path === EXT_KEY)
-            continue;
-          if (!path || path.startsWith("/") || path.split("/").includes("..")) {
-            skipped++;
-            continue;
-          }
-          const entry = normalizeEntry(value);
-          if (!entry || !parseIconRef(entry.icon)) {
-            skipped++;
-            continue;
-          }
-          if (entries >= MAX_IMPORT_ENTRIES) {
-            skipped++;
-            continue;
-          }
-          pathItems.push([path, entry]);
-          entries++;
-        }
-        const extItems = [];
-        const extSection = pkg.mapping[EXT_KEY];
-        if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
-          for (const [raw, value] of Object.entries(
-            extSection
-          )) {
-            const ext = normalizeExt(raw);
-            const entry = normalizeEntry(value);
-            if (!ext || !entry || !parseIconRef(entry.icon)) {
-              skipped++;
-              continue;
-            }
-            if (entries >= MAX_IMPORT_ENTRIES) {
-              skipped++;
-              continue;
-            }
-            extItems.push([ext, entry]);
-            entries++;
-          }
-        }
+        const {
+          pathItems,
+          extItems,
+          entries,
+          skipped: entrySkipped
+        } = collectImportEntries(pkg.mapping, MAX_IMPORT_ENTRIES);
+        skipped += entrySkipped;
         await mapping.importAll(pathItems, extItems);
         store.clear();
         onDone();
@@ -6226,7 +6263,7 @@ function buildIconExtension(store, getAutoLight) {
     { decorations: (v) => v.decorations }
   );
 }
-var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
+var MoiPlugin = class extends import_obsidian10.Plugin {
   constructor() {
     super(...arguments);
     this.settings = { ...DEFAULT_SETTINGS };
@@ -6234,11 +6271,15 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.warnedConflicts = false;
     /** Meta Writes bündeln, das Envelope mit Cache ist groß. */
     this.metaTimer = 0;
+    /** CDN Icon aus dem Cache als SVG Datei in den Icon Ordner schreiben. */
+    this.savingFiles = /* @__PURE__ */ new Set();
     this.cdnData = {};
     this.recentIcons = [];
     this.favoriteIcons = [];
     /** Aufeinanderfolgende Saves, damit sich parallele Writes nicht überholen. */
     this.dataSaveQueue = Promise.resolve();
+    /** Textfelder entprellen, ein Save pro Tipp-Pause reicht. */
+    this.settingsTimer = 0;
   }
   async onload() {
     await this.loadAll();
@@ -6428,11 +6469,12 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
         }
       })
     );
-    this.addSettingTab(new InlineSvgIconsSettingTab(this.app, this));
+    this.addSettingTab(new MoiSettingTab(this.app, this));
   }
   onunload() {
     var _a, _b, _c, _d;
     window.clearTimeout(this.metaTimer);
+    window.clearTimeout(this.settingsTimer);
     (_a = this.cdn) == null ? void 0 : _a.flush();
     void this.saveAll();
     void ((_b = this.mapping) == null ? void 0 : _b.flush());
@@ -6450,7 +6492,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     const found = CONFLICT_IDS.filter((id) => id in plugins);
     if (found.length > 0) {
       new import_obsidian10.Notice(
-        `Inline SVG Icons: ${found.join(", ")} ist auch aktiv und ver\xE4ndert Explorer Icons, es kann zu \xDCberschneidungen kommen.`,
+        `M.O.I.: ${found.join(", ")} ist auch aktiv und ver\xE4ndert Explorer Icons, es kann zu \xDCberschneidungen kommen.`,
         9e3
       );
     }
@@ -6716,7 +6758,6 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.explorer.refreshSoon();
     this.chrome.refreshSoon();
   }
-  /** CDN Icon aus dem Cache als SVG Datei in den Icon Ordner schreiben. */
   async saveCdnToFile(ref) {
     const parsed = parseIconRef(ref);
     if (!parsed || parsed.kind !== "svg") {
@@ -6733,14 +6774,24 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
       new import_obsidian10.Notice("Datei existiert bereits");
       return;
     }
-    const slash = path.lastIndexOf("/");
-    if (slash > 0) {
-      const dir = path.slice(0, slash);
-      if (!this.app.vault.getAbstractFileByPath(dir)) {
-        await this.app.vault.adapter.mkdir(dir);
+    if (this.savingFiles.has(path))
+      return;
+    this.savingFiles.add(path);
+    try {
+      const slash = path.lastIndexOf("/");
+      if (slash > 0) {
+        const dir = path.slice(0, slash);
+        if (!this.app.vault.getAbstractFileByPath(dir)) {
+          await this.app.vault.adapter.mkdir(dir);
+        }
       }
+      await this.app.vault.create(path, svg);
+    } catch (e) {
+      new import_obsidian10.Notice("Datei konnte nicht gespeichert werden");
+      return;
+    } finally {
+      this.savingFiles.delete(path);
     }
-    await this.app.vault.create(path, svg);
     this.icons.invalidatePath(path);
     this.explorer.refreshSoon();
     new import_obsidian10.Notice(`Gespeichert: ${path}`);
@@ -6948,7 +6999,7 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     try {
       raw = await this.loadData();
     } catch (e) {
-      console.warn("[inline-svg-icons] data.json ung\xFCltig, Standard geladen");
+      console.warn("[moi] data.json ung\xFCltig, Standard geladen");
     }
     if (this.isEnvelope(raw)) {
       this.settings = { ...DEFAULT_SETTINGS, ...(_a = raw.settings) != null ? _a : {} };
@@ -6994,8 +7045,14 @@ var InlineSvgIconsPlugin = class extends import_obsidian10.Plugin {
     this.refreshEditorIcons();
     this.app.workspace.updateOptions();
   }
+  saveSettingsSoon() {
+    window.clearTimeout(this.settingsTimer);
+    this.settingsTimer = window.setTimeout(() => {
+      void this.saveSettings();
+    }, 500);
+  }
 };
-var InlineSvgIconsSettingTab = class extends import_obsidian10.PluginSettingTab {
+var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -7006,13 +7063,13 @@ var InlineSvgIconsSettingTab = class extends import_obsidian10.PluginSettingTab 
     new import_obsidian10.Setting(containerEl).setName("Icon Ordner").setDesc("Pfad im Vault, ohne f\xFChrenden Schr\xE4gstrich.").addText(
       (text) => text.setPlaceholder("_assets/icons").setValue(this.plugin.settings.iconFolder).onChange(async (value) => {
         this.plugin.settings.iconFolder = normalizeFolder(value) || DEFAULT_SETTINGS.iconFolder;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsSoon();
       })
     );
     new import_obsidian10.Setting(containerEl).setName("Mapping Datei").setDesc("Zuordnung Explorer Pfad auf Icon, als JSON im Vault.").addText(
       (text) => text.setPlaceholder("_assets/icon-mapping.json").setValue(this.plugin.settings.mappingFile).onChange(async (value) => {
         this.plugin.settings.mappingFile = normalizeFolder(value) || DEFAULT_SETTINGS.mappingFile;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsSoon();
       })
     );
     new import_obsidian10.Setting(containerEl).setName("Dateityp Icons").setDesc("R\xFCckfall pro Endung nach Pfad und Frontmatter. Start leer.");

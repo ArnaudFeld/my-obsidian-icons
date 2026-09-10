@@ -7,6 +7,8 @@ import {
   sanitizeSvg,
 } from "../icons";
 import { MappingStore, normalizeEntry, normalizeExt } from "../mapping";
+import type { IconMapping } from "../mapping";
+import { collectImportEntries } from "../exchange";
 import { pickVariant } from "../tabs-titles";
 import { CdnCache, MISSING_TTL_MS } from "../cdn";
 import { cachedCatalogRefs } from "../suggest";
@@ -562,6 +564,35 @@ await checkAsync("Proto Namen lösen keinen Schreibvorgang aus", async () => {
   await store.remove("toString");
   await store.removeMany(["valueOf"]);
   assert.equal(writes, 1);
+});
+
+await checkAsync("Import sammelt nur gültige Einträge", async () => {
+  const pkg = {
+    "a.md": "eins",
+    "a..b.md": "zwei",
+    "../x.md": "böse",
+    "": "leer",
+    "/abs.md": "abs",
+    "kaputt.md": { icon: "../x" },
+    __ext__: { md: "server", "BÖSE": "x" },
+  } as unknown as IconMapping;
+  const res = collectImportEntries(pkg, 5000);
+  assert.deepEqual(
+    res.pathItems.map(([p]) => p).sort(),
+    ["a..b.md", "a.md"],
+  );
+  assert.deepEqual(res.extItems, [["md", { icon: "server" }]]);
+  assert.equal(res.entries, 3);
+  assert.equal(res.skipped, 5);
+});
+
+await checkAsync("Import deckelt Einträge", async () => {
+  const mapping: Record<string, string> = {};
+  for (let i = 0; i < 10; i++) mapping[`f${i}.md`] = "x";
+  const res = collectImportEntries(mapping as IconMapping, 3);
+  assert.equal(res.entries, 3);
+  assert.equal(res.pathItems.length, 3);
+  assert.equal(res.skipped, 7);
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

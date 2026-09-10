@@ -92,6 +92,62 @@ function isPackage(value: unknown): value is IconPackage {
  * Paket einlesen: SVG Dateien nach _assets/icons schreiben,
  * vorhandene bleiben, Mapping Einträge übernehmen.
  */
+export interface ImportEntryResult {
+  pathItems: [string, MappingEntry][];
+  extItems: [string, MappingEntry][];
+  entries: number;
+  skipped: number;
+}
+
+/** Mapping Anteil eines Pakets filtern, rein und damit testbar. */
+export function collectImportEntries(
+  mapping: IconMapping,
+  maxEntries: number,
+): ImportEntryResult {
+  let entries = 0;
+  let skipped = 0;
+  const pathItems: [string, MappingEntry][] = [];
+  for (const [path, value] of Object.entries(mapping)) {
+    if (path === EXT_KEY) continue;
+    if (!path || path.startsWith("/") || path.split("/").includes("..")) {
+      skipped++;
+      continue;
+    }
+    const entry = normalizeEntry(value as string | MappingEntry);
+    if (!entry || !parseIconRef(entry.icon)) {
+      skipped++;
+      continue;
+    }
+    if (entries >= maxEntries) {
+      skipped++;
+      continue;
+    }
+    pathItems.push([path, entry]);
+    entries++;
+  }
+  const extItems: [string, MappingEntry][] = [];
+  const extSection: unknown = mapping[EXT_KEY];
+  if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
+    for (const [raw, value] of Object.entries(
+      extSection as Record<string, string | MappingEntry>,
+    )) {
+      const ext = normalizeExt(raw);
+      const entry = normalizeEntry(value);
+      if (!ext || !entry || !parseIconRef(entry.icon)) {
+        skipped++;
+        continue;
+      }
+      if (entries >= maxEntries) {
+        skipped++;
+        continue;
+      }
+      extItems.push([ext, entry]);
+      entries++;
+    }
+  }
+  return { pathItems, extItems, entries, skipped };
+}
+
 export function importIcons(
   app: App,
   store: IconStore,
@@ -155,46 +211,13 @@ export function importIcons(
           written++;
           writtenBytes += svg.length;
         }
-        let entries = 0;
-        const pathItems: [string, MappingEntry][] = [];
-        for (const [path, value] of Object.entries(pkg.mapping)) {
-          if (path === EXT_KEY) continue;
-          if (!path || path.startsWith("/") || path.split("/").includes("..")) {
-            skipped++;
-            continue;
-          }
-          const entry = normalizeEntry(value as string | MappingEntry);
-          if (!entry || !parseIconRef(entry.icon)) {
-            skipped++;
-            continue;
-          }
-          if (entries >= MAX_IMPORT_ENTRIES) {
-            skipped++;
-            continue;
-          }
-          pathItems.push([path, entry]);
-          entries++;
-        }
-        const extItems: [string, MappingEntry][] = [];
-        const extSection: unknown = pkg.mapping[EXT_KEY];
-        if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
-          for (const [raw, value] of Object.entries(
-            extSection as Record<string, string | MappingEntry>,
-          )) {
-            const ext = normalizeExt(raw);
-            const entry = normalizeEntry(value);
-            if (!ext || !entry || !parseIconRef(entry.icon)) {
-              skipped++;
-              continue;
-            }
-            if (entries >= MAX_IMPORT_ENTRIES) {
-              skipped++;
-              continue;
-            }
-            extItems.push([ext, entry]);
-            entries++;
-          }
-        }
+        const {
+          pathItems,
+          extItems,
+          entries,
+          skipped: entrySkipped,
+        } = collectImportEntries(pkg.mapping, MAX_IMPORT_ENTRIES);
+        skipped += entrySkipped;
         await mapping.importAll(pathItems, extItems);
         store.clear();
         onDone();

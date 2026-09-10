@@ -1,4 +1,4 @@
-# Inline SVG Icons
+# M.O.I. – My Obsidian Icons.
 
 Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. Ohne Laufzeitabhängigkeiten.
 
@@ -83,5 +83,5 @@ Lizenzen: Devicon steht unter MIT, Simple Icons unter CC0, Lucide unter ISC, sel
 
 1. `npm install --legacy-peer-deps`
 2. `npm run build`
-3. Ordner mit `manifest.json`, `main.js` und `styles.css` nach `<Vault>/.obsidian/plugins/inline-svg-icons/` kopieren
+3. Ordner mit `manifest.json`, `main.js` und `styles.css` nach `<Vault>/.obsidian/plugins/my-obsidian-icons/` kopieren
 4. Plugin in Obsidian aktivieren

@@ -1,6 +1,6 @@
 {
-  "id": "inline-svg-icons",
-  "name": "Inline SVG Icons",
+  "id": "my-obsidian-icons",
+  "name": "M.O.I. – My Obsidian Icons.",
   "version": "0.0.9",
   "minAppVersion": "1.0.0",
   "description": "Eigene SVGs, Devicon, Simple und Lucide als {{icon:name}} in Notizen und per Rechtsklick im Explorer.",

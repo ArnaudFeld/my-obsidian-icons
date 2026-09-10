@@ -73,3 +73,11 @@ export function setIcon(): void {}
 export async function requestUrl(): Promise<never> {
   throw new Error("obsidian-stub: kein Netz in Tests");
 }
+
+export class Notice {
+  constructor(
+    _message?: unknown,
+    _timeout?: number,
+  ) {}
+  hide(): void {}
+}

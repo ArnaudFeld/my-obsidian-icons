@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = join(fileURLToPath(import.meta.url), "..", "..");
 const outFile = join(
   tmpdir(),
-  `inline-svg-icons-tests-${process.pid}.mjs`,
+  `my-obsidian-icons-tests-${process.pid}.mjs`,
 );
 
 await esbuild.build({
