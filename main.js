@@ -24,7 +24,7 @@ __export(main_exports, {
   default: () => MoiPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 var import_view = require("@codemirror/view");
 var import_state = require("@codemirror/state");
 
@@ -6137,6 +6137,31 @@ function importIcons(app, store, mapping, getFolder, onDone) {
   input.click();
 }
 
+// i18n.ts
+var import_obsidian10 = require("obsidian");
+var SLOGANS = {
+  en: "Local, lightweight, yours.",
+  de: "Lokal, leicht, deins.",
+  fr: "Local, l\xE9ger, \xE0 vous.",
+  es: "Local, ligero, tuyo."
+};
+function currentLanguage() {
+  try {
+    if (typeof import_obsidian10.getLanguage !== "function")
+      return "en";
+    const raw = (0, import_obsidian10.getLanguage)();
+    if (typeof raw !== "string" || raw.length === 0)
+      return "en";
+    return raw.toLowerCase().split("-")[0];
+  } catch (e) {
+    return "en";
+  }
+}
+function slogan() {
+  var _a;
+  return (_a = SLOGANS[currentLanguage()]) != null ? _a : SLOGANS.en;
+}
+
 // main.ts
 var RECENT_LIMIT = 10;
 var FAVORITE_LIMIT = 200;
@@ -6263,7 +6288,7 @@ function buildIconExtension(store, getAutoLight) {
     { decorations: (v) => v.decorations }
   );
 }
-var MoiPlugin = class extends import_obsidian10.Plugin {
+var MoiPlugin = class extends import_obsidian11.Plugin {
   constructor() {
     super(...arguments);
     this.settings = { ...DEFAULT_SETTINGS };
@@ -6409,7 +6434,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
       callback: () => {
         void this.runIconCheck().then((result) => {
           if (result.broken.length === 0) {
-            new import_obsidian10.Notice(
+            new import_obsidian11.Notice(
               `Icons ok: ${result.used} vergeben, ${result.unused} ungenutzt`
             );
           } else {
@@ -6457,7 +6482,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
           (item) => item.setTitle("Icon einf\xFCgen").setIcon("plus").onClick(() => this.openInsertPicker(editor))
         );
         const file = view.file;
-        if (!(file instanceof import_obsidian10.TFile))
+        if (!(file instanceof import_obsidian11.TFile))
           return;
         menu.addItem(
           (item) => item.setTitle("Icon \xE4ndern").setIcon("image-plus").onClick(() => this.openPicker([file.path]))
@@ -6491,7 +6516,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
       return;
     const found = CONFLICT_IDS.filter((id) => id in plugins);
     if (found.length > 0) {
-      new import_obsidian10.Notice(
+      new import_obsidian11.Notice(
         `M.O.I.: ${found.join(", ")} ist auch aktiv und ver\xE4ndert Explorer Icons, es kann zu \xDCberschneidungen kommen.`,
         9e3
       );
@@ -6526,7 +6551,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
   onRename(file, oldPath) {
     if (this.mapping.isMappingPath(file.path))
       return;
-    const isFolder = file instanceof import_obsidian10.TFolder;
+    const isFolder = file instanceof import_obsidian11.TFolder;
     void this.mapping.migrateRename(oldPath, file.path, isFolder).then((changed) => {
       if (changed)
         this.explorer.refreshSoon();
@@ -6537,7 +6562,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
     const path = file.path;
     if (this.mapping.isMappingPath(path))
       return;
-    const isFolder = file instanceof import_obsidian10.TFolder;
+    const isFolder = file instanceof import_obsidian11.TFolder;
     void this.mapping.removePath(path, isFolder).then((changed) => {
       if (changed) {
         this.explorer.refreshSoon();
@@ -6563,7 +6588,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
           this.chrome.refreshSoon();
           onSaved == null ? void 0 : onSaved();
         } catch (e) {
-          new import_obsidian10.Notice("Icon konnte nicht gespeichert werden");
+          new import_obsidian11.Notice("Icon konnte nicht gespeichert werden");
         }
       })();
     });
@@ -6711,7 +6736,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
     try {
       await this.mapping.setMany(paths.map((path) => [path, entry]));
     } catch (e) {
-      new import_obsidian10.Notice("Icons konnten nicht gespeichert werden");
+      new import_obsidian11.Notice("Icons konnten nicht gespeichert werden");
       return;
     }
     this.touchRecent([result.icon]);
@@ -6752,7 +6777,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
     try {
       await this.mapping.removeMany(paths);
     } catch (e) {
-      new import_obsidian10.Notice("Icons konnten nicht entfernt werden");
+      new import_obsidian11.Notice("Icons konnten nicht entfernt werden");
       return;
     }
     this.explorer.refreshSoon();
@@ -6761,17 +6786,17 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
   async saveCdnToFile(ref) {
     const parsed = parseIconRef(ref);
     if (!parsed || parsed.kind !== "svg") {
-      new import_obsidian10.Notice("Nur SVG Referenzen lassen sich speichern");
+      new import_obsidian11.Notice("Nur SVG Referenzen lassen sich speichern");
       return;
     }
     const svg = this.cdn.peek(ref);
     if (!svg) {
-      new import_obsidian10.Notice("Icon nicht im Cache, bitte erneut w\xE4hlen");
+      new import_obsidian11.Notice("Icon nicht im Cache, bitte erneut w\xE4hlen");
       return;
     }
     const path = `${normalizeFolder(this.settings.iconFolder)}/${parsed.name}.svg`;
-    if (this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian10.TFile) {
-      new import_obsidian10.Notice("Datei existiert bereits");
+    if (this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian11.TFile) {
+      new import_obsidian11.Notice("Datei existiert bereits");
       return;
     }
     if (this.savingFiles.has(path))
@@ -6787,14 +6812,14 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
       }
       await this.app.vault.create(path, svg);
     } catch (e) {
-      new import_obsidian10.Notice("Datei konnte nicht gespeichert werden");
+      new import_obsidian11.Notice("Datei konnte nicht gespeichert werden");
       return;
     } finally {
       this.savingFiles.delete(path);
     }
     this.icons.invalidatePath(path);
     this.explorer.refreshSoon();
-    new import_obsidian10.Notice(`Gespeichert: ${path}`);
+    new import_obsidian11.Notice(`Gespeichert: ${path}`);
   }
   cacheSize() {
     var _a, _b;
@@ -7052,7 +7077,7 @@ var MoiPlugin = class extends import_obsidian10.Plugin {
     }, 500);
   }
 };
-var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
+var MoiSettingTab = class extends import_obsidian11.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -7060,21 +7085,24 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian10.Setting(containerEl).setName("Icon Ordner").setDesc("Pfad im Vault, ohne f\xFChrenden Schr\xE4gstrich.").addText(
+    const head = containerEl.createDiv({ cls: "moi-settings-head" });
+    head.createEl("h2", { text: "M.O.I. \u2013 My Obsidian Icons." });
+    head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
+    new import_obsidian11.Setting(containerEl).setName("Icon Ordner").setDesc("Pfad im Vault, ohne f\xFChrenden Schr\xE4gstrich.").addText(
       (text) => text.setPlaceholder("_assets/icons").setValue(this.plugin.settings.iconFolder).onChange(async (value) => {
         this.plugin.settings.iconFolder = normalizeFolder(value) || DEFAULT_SETTINGS.iconFolder;
         this.plugin.saveSettingsSoon();
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Mapping Datei").setDesc("Zuordnung Explorer Pfad auf Icon, als JSON im Vault.").addText(
+    new import_obsidian11.Setting(containerEl).setName("Mapping Datei").setDesc("Zuordnung Explorer Pfad auf Icon, als JSON im Vault.").addText(
       (text) => text.setPlaceholder("_assets/icon-mapping.json").setValue(this.plugin.settings.mappingFile).onChange(async (value) => {
         this.plugin.settings.mappingFile = normalizeFolder(value) || DEFAULT_SETTINGS.mappingFile;
         this.plugin.saveSettingsSoon();
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Dateityp Icons").setDesc("R\xFCckfall pro Endung nach Pfad und Frontmatter. Start leer.");
+    new import_obsidian11.Setting(containerEl).setName("Dateityp Icons").setDesc("R\xFCckfall pro Endung nach Pfad und Frontmatter. Start leer.");
     for (const [ext, entry] of this.plugin.iconMapping().extEntries()) {
-      const row = new import_obsidian10.Setting(containerEl).setName(`*.${ext}`).setDesc(entry.icon);
+      const row = new import_obsidian11.Setting(containerEl).setName(`*.${ext}`).setDesc(entry.icon);
       const preview = document.createElement("span");
       preview.addClass("obsidian-icon-inline");
       preview.style.width = "18px";
@@ -7108,7 +7136,7 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
       );
     }
     let newExt = "";
-    new import_obsidian10.Setting(containerEl).setName("Endung hinzuf\xFCgen").setDesc("Ohne Punkt, z.B. md.").addText(
+    new import_obsidian11.Setting(containerEl).setName("Endung hinzuf\xFCgen").setDesc("Ohne Punkt, z.B. md.").addText(
       (text) => text.setPlaceholder("md").onChange((value) => {
         newExt = value;
       })
@@ -7116,7 +7144,7 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
       (button) => button.setButtonText("W\xE4hlen").onClick(() => {
         const ext = normalizeExt(newExt);
         if (!ext) {
-          new import_obsidian10.Notice("Ung\xFCltige Endung");
+          new import_obsidian11.Notice("Ung\xFCltige Endung");
           return;
         }
         this.plugin.openExtPicker(
@@ -7126,7 +7154,7 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
         );
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("CDN Nachladen").setDesc(
+    new import_obsidian11.Setting(containerEl).setName("CDN Nachladen").setDesc(
       "Fehlende Devicon und Simple Icons von jsdelivr laden und auf diesem Ger\xE4t cachen. Teilt sich den Cache mit Self-Hosted."
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.cdnEnabled).onChange(async (value) => {
@@ -7134,7 +7162,7 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Self-Hosted Icons").setDesc(
+    new import_obsidian11.Setting(containerEl).setName("Self-Hosted Icons").setDesc(
       "Homelab Marken von selfh.st per CDN, CC-BY-4.0 mit Namensnennung in der README."
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.selfhostEnabled).onChange(async (value) => {
@@ -7142,19 +7170,19 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    const standSetting = new import_obsidian10.Setting(containerEl).setName("Katalog Stand").setDesc(this.plugin.catalogStandText()).addButton(
+    const standSetting = new import_obsidian11.Setting(containerEl).setName("Katalog Stand").setDesc(this.plugin.catalogStandText()).addButton(
       (button) => button.setButtonText("Neu laden").onClick(async () => {
         await this.plugin.reloadCatalogs();
         standSetting.setDesc(this.plugin.catalogStandText());
       })
     );
-    const cacheSetting = new import_obsidian10.Setting(containerEl).setName("Icon Cache").setDesc(`${this.plugin.cacheSize()} Icons auf diesem Ger\xE4t.`).addButton(
+    const cacheSetting = new import_obsidian11.Setting(containerEl).setName("Icon Cache").setDesc(`${this.plugin.cacheSize()} Icons auf diesem Ger\xE4t.`).addButton(
       (button) => button.setButtonText("Leeren").onClick(async () => {
         this.plugin.clearCache();
         cacheSetting.setDesc("0 Icons auf diesem Ger\xE4t.");
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Helle Variante automatisch").setDesc(
+    new import_obsidian11.Setting(containerEl).setName("Helle Variante automatisch").setDesc(
       "Im dunklen Theme die helle Self-Hosted Variante nehmen wenn vorhanden. Hand Wahl gewinnt."
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.autoLightVariant).onChange(async (value) => {
@@ -7162,19 +7190,19 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Tab Icons").setDesc("Mapping und Frontmatter Icons in der Tableiste zeigen.").addToggle(
+    new import_obsidian11.Setting(containerEl).setName("Tab Icons").setDesc("Mapping und Frontmatter Icons in der Tableiste zeigen.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.showTabIcons).onChange(async (value) => {
         this.plugin.settings.showTabIcons = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Titel Icons").setDesc("Mapping und Frontmatter Icons vor dem Notiz Titel zeigen.").addToggle(
+    new import_obsidian11.Setting(containerEl).setName("Titel Icons").setDesc("Mapping und Frontmatter Icons vor dem Notiz Titel zeigen.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.showTitleIcons).onChange(async (value) => {
         this.plugin.settings.showTitleIcons = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Paket exportieren").setDesc("Mapping plus genutzte Icons als Datei f\xFCr Zweit Vaults.").addButton(
+    new import_obsidian11.Setting(containerEl).setName("Paket exportieren").setDesc("Mapping plus genutzte Icons als Datei f\xFCr Zweit Vaults.").addButton(
       (button) => button.setButtonText("Exportieren").onClick(() => {
         void exportIcons(
           this.plugin.app,
@@ -7183,7 +7211,7 @@ var MoiSettingTab = class extends import_obsidian10.PluginSettingTab {
         );
       })
     );
-    new import_obsidian10.Setting(containerEl).setName("Paket importieren").setDesc("icons-export.json einlesen und Icons nach _assets/icons schreiben.").addButton(
+    new import_obsidian11.Setting(containerEl).setName("Paket importieren").setDesc("icons-export.json einlesen und Icons nach _assets/icons schreiben.").addButton(
       (button) => button.setButtonText("Importieren").onClick(() => {
         this.plugin.importPackage();
       })

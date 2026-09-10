@@ -36,6 +36,21 @@
   margin-right: 0.3em;
 }
 
+/* Kopf im Einstellungs-Tab, Slogan in der Sprache der App */
+.moi-settings-head {
+  margin-bottom: 16px;
+}
+
+.moi-settings-head h2 {
+  margin: 0;
+}
+
+.moi-settings-slogan {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
 /* Farbbereich im Picker */
 .obsidian-icon-picker-colors {
   margin-top: 12px;

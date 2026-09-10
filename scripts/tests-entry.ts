@@ -9,6 +9,8 @@ import {
 import { MappingStore, normalizeEntry, normalizeExt } from "../mapping";
 import type { IconMapping } from "../mapping";
 import { collectImportEntries } from "../exchange";
+import { currentLanguage, slogan } from "../i18n";
+import { setStubLanguage } from "./obsidian-stub";
 import { pickVariant } from "../tabs-titles";
 import { CdnCache, MISSING_TTL_MS } from "../cdn";
 import { cachedCatalogRefs } from "../suggest";
@@ -593,6 +595,21 @@ await checkAsync("Import deckelt Einträge", async () => {
   assert.equal(res.entries, 3);
   assert.equal(res.pathItems.length, 3);
   assert.equal(res.skipped, 7);
+});
+
+check("Slogan folgt der App Sprache", () => {
+  setStubLanguage("de-AT");
+  assert.equal(currentLanguage(), "de");
+  assert.equal(slogan(), "Lokal, leicht, deins.");
+  setStubLanguage("fr");
+  assert.equal(slogan(), "Local, léger, à vous.");
+  setStubLanguage("es");
+  assert.equal(slogan(), "Local, ligero, tuyo.");
+  setStubLanguage("it");
+  assert.equal(slogan(), "Local, lightweight, yours.");
+  setStubLanguage("en");
+  assert.equal(currentLanguage(), "en");
+  assert.equal(slogan(), "Local, lightweight, yours.");
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

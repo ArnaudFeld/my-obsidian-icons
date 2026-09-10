@@ -37,6 +37,7 @@ import { IconGalleryModal, IconCheckModal } from "./gallery";
 import { IconSuggest, FrontmatterSuggest, collectCatalogRefs, clearCatalogCache } from "./suggest";
 import { TabsTitles } from "./tabs-titles";
 import { exportIcons, importIcons } from "./exchange";
+import { slogan } from "./i18n";
 
 import { CdnCache, DEVICON_NAMES, SIMPLE_CDN_SLUGS, fetchSimpleSlugs, loadCatalogs, catalogStand, clearCatalogCaches, selfhostLightRefs } from "./cdn";
 import { SELFHOST_DATE } from "./selfhost-catalog";
@@ -1100,6 +1101,9 @@ class MoiSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    const head = containerEl.createDiv({ cls: "moi-settings-head" });
+    head.createEl("h2", { text: "M.O.I. – My Obsidian Icons." });
+    head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
     new Setting(containerEl)
       .setName("Icon Ordner")
       .setDesc("Pfad im Vault, ohne führenden Schrägstrich.")

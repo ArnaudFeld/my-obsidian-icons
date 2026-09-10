@@ -70,6 +70,17 @@ export function getIconIds(): string[] {
 
 export function setIcon(): void {}
 
+let stubLanguage = "en";
+
+export function getLanguage(): string {
+  return stubLanguage;
+}
+
+/** Nur für Tests: Sprache der App umstellen. */
+export function setStubLanguage(lang: string): void {
+  stubLanguage = lang;
+}
+
 export async function requestUrl(): Promise<never> {
   throw new Error("obsidian-stub: kein Netz in Tests");
 }
