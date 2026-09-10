@@ -9,7 +9,7 @@ import {
 import { MappingStore, normalizeEntry, normalizeExt } from "../mapping";
 import type { IconMapping } from "../mapping";
 import { collectImportEntries } from "../exchange";
-import { currentLanguage, slogan } from "../i18n";
+import { currentLanguage, slogan, colorName, t } from "../i18n";
 import { setStubLanguage } from "./obsidian-stub";
 import { pickVariant } from "../tabs-titles";
 import { CdnCache, MISSING_TTL_MS } from "../cdn";
@@ -610,6 +610,22 @@ check("Slogan folgt der App Sprache", () => {
   setStubLanguage("en");
   assert.equal(currentLanguage(), "en");
   assert.equal(slogan(), "Local, lightweight, yours.");
+});
+
+check("UI Texte zweisprachig mit Platzhaltern", () => {
+  setStubLanguage("de");
+  assert.equal(t("menu.change"), "Icon ändern");
+  assert.equal(t("pick.apply"), "Übernehmen");
+  assert.equal(colorName("green"), "Grün");
+  setStubLanguage("en");
+  assert.equal(t("menu.change"), "Change icon");
+  assert.equal(t("pick.apply"), "Apply");
+  assert.equal(colorName("green"), "Green");
+  assert.equal(t("notice.saved", { path: "a.svg" }), "Saved: a.svg");
+  assert.equal(t("set.cache.count", { count: 3 }), "3 icons on this device.");
+  setStubLanguage("it");
+  assert.equal(t("menu.change"), "Change icon");
+  setStubLanguage("en");
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

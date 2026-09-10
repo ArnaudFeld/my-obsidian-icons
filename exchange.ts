@@ -1,6 +1,7 @@
 import { App, Notice, TFile } from "obsidian";
 import { IconStore, normalizeSvgName, parseIconRef, sanitizeSvg } from "./icons";
 import { EXT_KEY, IconMapping, MappingEntry, MappingStore, normalizeEntry, normalizeExt } from "./mapping";
+import { t } from "./i18n";
 
 export interface IconPackage {
   version: 1;
@@ -69,11 +70,11 @@ export async function exportIcons(
   const stamp = new Date().toISOString().slice(0, 10);
   const path = `icons-export-${stamp}.json`;
   if (app.vault.getAbstractFileByPath(path) instanceof TFile) {
-    new Notice(`Export abgebrochen: ${path} existiert bereits`);
+    new Notice(t("ex.abort", { path }));
     return;
   }
   await app.vault.create(path, JSON.stringify(pkg, null, 2));
-  new Notice(`Exportiert: ${path}`);
+  new Notice(t("ex.done", { path }));
 }
 
 function isPackage(value: unknown): value is IconPackage {
@@ -163,18 +164,18 @@ export function importIcons(
     if (!file) return;
     void (async () => {
       if (file.size > MAX_IMPORT_TOTAL_BYTES) {
-        new Notice("Import fehlgeschlagen: Datei zu groß");
+        new Notice(t("ex.tooBig"));
         return;
       }
       let pkg: unknown;
       try {
         pkg = JSON.parse(await file.text());
       } catch {
-        new Notice("Import fehlgeschlagen: keine gültige Datei");
+        new Notice(t("ex.invalid"));
         return;
       }
       if (!isPackage(pkg)) {
-        new Notice("Import fehlgeschlagen: keine gültige Datei");
+        new Notice(t("ex.invalid"));
         return;
       }
       try {
@@ -222,10 +223,10 @@ export function importIcons(
         store.clear();
         onDone();
         new Notice(
-          `Importiert: ${entries} Einträge, ${written} Dateien (${skipped} übersprungen)`,
+          t("ex.imported", { entries, files: written, skipped }),
         );
       } catch {
-        new Notice("Import abgebrochen: Schreibfehler, Teilstand bleibt");
+        new Notice(t("ex.writeErr"));
       }
     })();
   };

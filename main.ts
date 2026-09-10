@@ -37,7 +37,7 @@ import { IconGalleryModal, IconCheckModal } from "./gallery";
 import { IconSuggest, FrontmatterSuggest, collectCatalogRefs, clearCatalogCache } from "./suggest";
 import { TabsTitles } from "./tabs-titles";
 import { exportIcons, importIcons } from "./exchange";
-import { slogan } from "./i18n";
+import { slogan, t } from "./i18n";
 
 import { CdnCache, DEVICON_NAMES, SIMPLE_CDN_SLUGS, fetchSimpleSlugs, loadCatalogs, catalogStand, clearCatalogCaches, selfhostLightRefs } from "./cdn";
 import { SELFHOST_DATE } from "./selfhost-catalog";
@@ -327,14 +327,14 @@ export default class MoiPlugin extends Plugin {
       this.app.workspace.on("file-menu", (menu, file) => {
         menu.addItem((item) =>
           item
-            .setTitle("Icon ändern")
+            .setTitle(t("menu.change"))
             .setIcon("image-plus")
             .onClick(() => this.openPicker([file.path])),
         );
         if (this.mapping.get(file.path)) {
           menu.addItem((item) =>
             item
-              .setTitle("Icon entfernen")
+              .setTitle(t("menu.remove"))
               .setIcon("trash")
               .onClick(() => this.removeIcons([file.path])),
           );
@@ -346,14 +346,14 @@ export default class MoiPlugin extends Plugin {
         const paths = files.map((f) => f.path);
         menu.addItem((item) =>
           item
-            .setTitle(`Icons ändern (${paths.length})`)
+            .setTitle(t("menu.changeMany", { count: paths.length }))
             .setIcon("image-plus")
             .onClick(() => this.openPicker(paths)),
         );
         if (paths.some((p) => this.mapping.get(p))) {
           menu.addItem((item) =>
             item
-              .setTitle(`Icons entfernen (${paths.length})`)
+              .setTitle(t("menu.removeMany", { count: paths.length }))
               .setIcon("trash")
               .onClick(() => this.removeIcons(paths)),
           );
@@ -363,7 +363,7 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "reload-icons",
-      name: "Icons neu laden",
+      name: t("cmd.reload"),
       callback: () => {
         this.icons.clear();
         void this.mapping.load().then(() => this.explorer.refresh());
@@ -373,7 +373,7 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "open-gallery",
-      name: "Icon Galerie öffnen",
+      name: t("cmd.gallery"),
       callback: () => {
         new IconGalleryModal(this.app, this.icons, this.mapping, () => {
           this.refreshViews();
@@ -383,12 +383,12 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "check-icons",
-      name: "Icons prüfen",
+      name: t("cmd.check"),
       callback: () => {
         void this.runIconCheck().then((result) => {
           if (result.broken.length === 0) {
             new Notice(
-              `Icons ok: ${result.used} vergeben, ${result.unused} ungenutzt`,
+              t("notice.checkOk", { used: result.used, unused: result.unused }),
             );
           } else {
             new IconCheckModal(this.app, result).open();
@@ -399,7 +399,7 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "export-icons",
-      name: "Icons exportieren",
+      name: t("cmd.export"),
       callback: () => {
         void exportIcons(this.app, this.icons, this.mapping);
       },
@@ -407,7 +407,7 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "import-icons",
-      name: "Icons importieren",
+      name: t("cmd.import"),
       callback: () => {
         this.importPackage();
       },
@@ -415,7 +415,7 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "pick-icon-active-file",
-      name: "Icon für aktive Datei wählen",
+      name: t("cmd.pickActive"),
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         if (!file) return false;
@@ -426,7 +426,7 @@ export default class MoiPlugin extends Plugin {
 
     this.addCommand({
       id: "insert-icon-at-cursor",
-      name: "Icon in Notiz einfügen",
+      name: t("cmd.insert"),
       editorCallback: (editor) => {
         this.openInsertPicker(editor);
       },
@@ -436,7 +436,7 @@ export default class MoiPlugin extends Plugin {
       this.app.workspace.on("editor-menu", (menu, editor, view) => {
         menu.addItem((item) =>
           item
-            .setTitle("Icon einfügen")
+            .setTitle(t("menu.insert"))
             .setIcon("plus")
             .onClick(() => this.openInsertPicker(editor)),
         );
@@ -444,14 +444,14 @@ export default class MoiPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
         menu.addItem((item) =>
           item
-            .setTitle("Icon ändern")
+            .setTitle(t("menu.change"))
             .setIcon("image-plus")
             .onClick(() => this.openPicker([file.path])),
         );
         if (this.mapping.get(file.path)) {
           menu.addItem((item) =>
             item
-              .setTitle("Icon entfernen")
+              .setTitle(t("menu.remove"))
               .setIcon("trash")
               .onClick(() => this.removeIcons([file.path])),
           );
@@ -485,7 +485,7 @@ export default class MoiPlugin extends Plugin {
     const found = CONFLICT_IDS.filter((id) => id in plugins);
     if (found.length > 0) {
       new Notice(
-        `M.O.I.: ${found.join(", ")} ist auch aktiv und verändert Explorer Icons, es kann zu Überschneidungen kommen.`,
+        `M.O.I.: ${t("notice.conflict", { names: found.join(", ") })}`,
         9000,
       );
     }
@@ -558,7 +558,7 @@ export default class MoiPlugin extends Plugin {
           this.chrome.refreshSoon();
           onSaved?.();
         } catch {
-          new Notice("Icon konnte nicht gespeichert werden");
+          new Notice(t("notice.iconSaveFailed"));
         }
       })();
     });
@@ -712,7 +712,7 @@ export default class MoiPlugin extends Plugin {
     try {
       await this.mapping.setMany(paths.map((path) => [path, entry] as [string, typeof entry]));
     } catch {
-      new Notice("Icons konnten nicht gespeichert werden");
+      new Notice(t("notice.iconsSaveFailed"));
       return;
     }
     this.touchRecent([result.icon]);
@@ -758,7 +758,7 @@ export default class MoiPlugin extends Plugin {
     try {
       await this.mapping.removeMany(paths);
     } catch {
-      new Notice("Icons konnten nicht entfernt werden");
+      new Notice(t("notice.iconsRemoveFailed"));
       return;
     }
     this.explorer.refreshSoon();
@@ -771,17 +771,17 @@ export default class MoiPlugin extends Plugin {
   private async saveCdnToFile(ref: string): Promise<void> {
     const parsed = parseIconRef(ref);
     if (!parsed || parsed.kind !== "svg") {
-      new Notice("Nur SVG Referenzen lassen sich speichern");
+      new Notice(t("notice.onlySvg"));
       return;
     }
     const svg = this.cdn.peek(ref);
     if (!svg) {
-      new Notice("Icon nicht im Cache, bitte erneut wählen");
+      new Notice(t("notice.notInCache"));
       return;
     }
     const path = `${normalizeFolder(this.settings.iconFolder)}/${parsed.name}.svg`;
     if (this.app.vault.getAbstractFileByPath(path) instanceof TFile) {
-      new Notice("Datei existiert bereits");
+      new Notice(t("notice.fileExists"));
       return;
     }
     // Doppelklick Guard: zweiter Aufruf während dem ersten läuft abweisen.
@@ -797,14 +797,14 @@ export default class MoiPlugin extends Plugin {
       }
       await this.app.vault.create(path, svg);
     } catch {
-      new Notice("Datei konnte nicht gespeichert werden");
+      new Notice(t("notice.fileSaveFailed"));
       return;
     } finally {
       this.savingFiles.delete(path);
     }
     this.icons.invalidatePath(path);
     this.explorer.refreshSoon();
-    new Notice(`Gespeichert: ${path}`);
+    new Notice(t("notice.saved", { path }));
   }
 
   cacheSize(): number {
@@ -821,17 +821,24 @@ export default class MoiPlugin extends Plugin {
     const stand = catalogStand();
     const parts: string[] = [];
     if (this.settings.cdnEnabled) {
-      parts.push(`Devicon: ${stand.devicon ?? "eingebaut (v2.17.0)"}`);
-      parts.push(`Simple: ${stand.simple ?? "eingebaut (kuratiert)"}`);
+      parts.push(
+        t("cat.devicon", {
+          value: stand.devicon ?? t("cat.builtinVersion"),
+        }),
+      );
+      parts.push(
+        t("cat.simple", { value: stand.simple ?? t("cat.builtinCurated") }),
+      );
     }
     if (this.settings.selfhostEnabled) {
       parts.push(
-        `Self-Hosted: ${stand.selfhosted ?? `eingebaut (${SELFHOST_DATE})`}`,
+        t("cat.selfhost", {
+          value:
+            stand.selfhosted ?? t("cat.builtinDate", { date: SELFHOST_DATE }),
+        }),
       );
     }
-    return parts.length > 0
-      ? parts.join(" · ")
-      : "CDN aus, nur Dateien und Lucide.";
+    return parts.length > 0 ? parts.join(" · ") : t("cat.off");
   }
 
   async reloadCatalogs(): Promise<void> {
@@ -1105,8 +1112,8 @@ class MoiSettingTab extends PluginSettingTab {
     head.createEl("h2", { text: "M.O.I. – My Obsidian Icons." });
     head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
     new Setting(containerEl)
-      .setName("Icon Ordner")
-      .setDesc("Pfad im Vault, ohne führenden Schrägstrich.")
+      .setName(t("set.iconFolder.name"))
+      .setDesc(t("set.iconFolder.desc"))
       .addText((text) =>
         text
           .setPlaceholder("_assets/icons")
@@ -1118,8 +1125,8 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     new Setting(containerEl)
-      .setName("Mapping Datei")
-      .setDesc("Zuordnung Explorer Pfad auf Icon, als JSON im Vault.")
+      .setName(t("set.mappingFile.name"))
+      .setDesc(t("set.mappingFile.desc"))
       .addText((text) =>
         text
           .setPlaceholder("_assets/icon-mapping.json")
@@ -1131,8 +1138,8 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     new Setting(containerEl)
-      .setName("Dateityp Icons")
-      .setDesc("Rückfall pro Endung nach Pfad und Frontmatter. Start leer.");
+      .setName(t("set.ext.name"))
+      .setDesc(t("set.ext.desc"));
     for (const [ext, entry] of this.plugin.iconMapping().extEntries()) {
       const row = new Setting(containerEl).setName(`*.${ext}`).setDesc(entry.icon);
       const preview = document.createElement("span");
@@ -1148,7 +1155,7 @@ class MoiSettingTab extends PluginSettingTab {
       }
       row
         .addButton((button) =>
-          button.setButtonText("Ändern").onClick(() => {
+          button.setButtonText(t("set.ext.change")).onClick(() => {
             this.plugin.openExtPicker(
               ext,
               {
@@ -1171,18 +1178,18 @@ class MoiSettingTab extends PluginSettingTab {
     }
     let newExt = "";
     new Setting(containerEl)
-      .setName("Endung hinzufügen")
-      .setDesc("Ohne Punkt, z.B. md.")
+      .setName(t("set.ext.add.name"))
+      .setDesc(t("set.ext.add.desc"))
       .addText((text) =>
         text.setPlaceholder("md").onChange((value) => {
           newExt = value;
         }),
       )
       .addButton((button) =>
-        button.setButtonText("Wählen").onClick(() => {
+        button.setButtonText(t("set.ext.pick")).onClick(() => {
           const ext = normalizeExt(newExt);
           if (!ext) {
-            new Notice("Ungültige Endung");
+            new Notice(t("notice.invalidExt"));
             return;
           }
           this.plugin.openExtPicker(
@@ -1193,10 +1200,8 @@ class MoiSettingTab extends PluginSettingTab {
         }),
       );
     new Setting(containerEl)
-      .setName("CDN Nachladen")
-      .setDesc(
-        "Fehlende Devicon und Simple Icons von jsdelivr laden und auf diesem Gerät cachen. Teilt sich den Cache mit Self-Hosted.",
-      )
+      .setName(t("set.cdn.name"))
+      .setDesc(t("set.cdn.desc"))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.cdnEnabled)
@@ -1206,10 +1211,8 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     new Setting(containerEl)
-      .setName("Self-Hosted Icons")
-      .setDesc(
-        "Homelab Marken von selfh.st per CDN, CC-BY-4.0 mit Namensnennung in der README.",
-      )
+      .setName(t("set.selfhost.name"))
+      .setDesc(t("set.selfhost.desc"))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.selfhostEnabled)
@@ -1219,28 +1222,26 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     const standSetting = new Setting(containerEl)
-      .setName("Katalog Stand")
+      .setName(t("set.stand.name"))
       .setDesc(this.plugin.catalogStandText())
       .addButton((button) =>
-        button.setButtonText("Neu laden").onClick(async () => {
+        button.setButtonText(t("set.stand.reload")).onClick(async () => {
           await this.plugin.reloadCatalogs();
           standSetting.setDesc(this.plugin.catalogStandText());
         }),
       );
     const cacheSetting = new Setting(containerEl)
-      .setName("Icon Cache")
-      .setDesc(`${this.plugin.cacheSize()} Icons auf diesem Gerät.`)
+      .setName(t("set.cache.name"))
+      .setDesc(t("set.cache.count", { count: this.plugin.cacheSize() }))
       .addButton((button) =>
-        button.setButtonText("Leeren").onClick(async () => {
+        button.setButtonText(t("set.cache.clear")).onClick(async () => {
           this.plugin.clearCache();
-          cacheSetting.setDesc("0 Icons auf diesem Gerät.");
+          cacheSetting.setDesc(t("set.cache.count", { count: 0 }));
         }),
       );
     new Setting(containerEl)
-      .setName("Helle Variante automatisch")
-      .setDesc(
-        "Im dunklen Theme die helle Self-Hosted Variante nehmen wenn vorhanden. Hand Wahl gewinnt.",
-      )
+      .setName(t("set.autoLight.name"))
+      .setDesc(t("set.autoLight.desc"))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.autoLightVariant)
@@ -1250,8 +1251,8 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     new Setting(containerEl)
-      .setName("Tab Icons")
-      .setDesc("Mapping und Frontmatter Icons in der Tableiste zeigen.")
+      .setName(t("set.tabs.name"))
+      .setDesc(t("set.tabs.desc"))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showTabIcons)
@@ -1261,8 +1262,8 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     new Setting(containerEl)
-      .setName("Titel Icons")
-      .setDesc("Mapping und Frontmatter Icons vor dem Notiz Titel zeigen.")
+      .setName(t("set.titles.name"))
+      .setDesc(t("set.titles.desc"))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showTitleIcons)
@@ -1272,10 +1273,10 @@ class MoiSettingTab extends PluginSettingTab {
           }),
       );
     new Setting(containerEl)
-      .setName("Paket exportieren")
-      .setDesc("Mapping plus genutzte Icons als Datei für Zweit Vaults.")
+      .setName(t("set.export.name"))
+      .setDesc(t("set.export.desc"))
       .addButton((button) =>
-        button.setButtonText("Exportieren").onClick(() => {
+        button.setButtonText(t("set.export.btn")).onClick(() => {
           void exportIcons(
             this.plugin.app,
             this.plugin.iconStore(),
@@ -1284,10 +1285,10 @@ class MoiSettingTab extends PluginSettingTab {
         }),
       );
     new Setting(containerEl)
-      .setName("Paket importieren")
-      .setDesc("icons-export.json einlesen und Icons nach _assets/icons schreiben.")
+      .setName(t("set.import.name"))
+      .setDesc(t("set.import.desc"))
       .addButton((button) =>
-        button.setButtonText("Importieren").onClick(() => {
+        button.setButtonText(t("set.import.btn")).onClick(() => {
           this.plugin.importPackage();
         }),
       );

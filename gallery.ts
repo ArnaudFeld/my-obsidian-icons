@@ -1,6 +1,7 @@
 import { App, Modal } from "obsidian";
 import { IconRef, IconStore, parseIconRef, renderIconInto } from "./icons";
 import { MappingStore } from "./mapping";
+import { t } from "./i18n";
 
 /** Gleichzeitige Vorschaubilder, wie im Explorer begrenzt. */
 const PAINT_CONCURRENCY = 6;
@@ -49,17 +50,17 @@ export class IconGalleryModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("obsidian-icon-gallery");
-    contentEl.createEl("h3", { text: "Icon Galerie" });
+    contentEl.createEl("h3", { text: t("gal.title") });
 
     const used = this.mapping.entries();
     const extRules = this.mapping.extEntries();
     contentEl.createEl("div", {
-      text: `Vergeben (${used.length} Pfade, ${extRules.length} Regeln)`,
+      text: t("gal.assigned", { count: used.length, rules: extRules.length }),
       cls: "obsidian-icon-picker-group",
     });
     if (used.length === 0) {
       contentEl.createDiv({
-        text: "Noch keine Icons vergeben",
+        text: t("gal.empty"),
         cls: "obsidian-icon-picker-more",
       });
     }
@@ -75,10 +76,10 @@ export class IconGalleryModal extends Modal {
       const bits = [entry.icon];
       if (entry.color) bits.push(entry.color);
       if (entry.size) bits.push(entry.size);
-      if (entry.iconDark) bits.push(`dunkel: ${entry.iconDark}`);
+      if (entry.iconDark) bits.push(t("gal.dark", { value: entry.iconDark }));
       label.createDiv({ text: bits.join(" · "), cls: "obsidian-icon-picker-more" });
       const remove = row.createEl("button", {
-        text: "Entfernen",
+        text: t("gal.remove"),
         cls: "obsidian-icon-gallery-remove",
       }) as HTMLButtonElement;
       remove.onclick = () => {
@@ -90,7 +91,7 @@ export class IconGalleryModal extends Modal {
     }
 
     contentEl.createEl("div", {
-      text: `Dateityp (${extRules.length})`,
+      text: t("gal.ext", { count: extRules.length }),
       cls: "obsidian-icon-picker-group",
     });
     for (const [name, entry] of extRules) {
@@ -104,10 +105,10 @@ export class IconGalleryModal extends Modal {
       const bits = [entry.icon];
       if (entry.color) bits.push(entry.color);
       if (entry.size) bits.push(entry.size);
-      if (entry.iconDark) bits.push(`dunkel: ${entry.iconDark}`);
+      if (entry.iconDark) bits.push(t("gal.dark", { value: entry.iconDark }));
       label.createDiv({ text: bits.join(" · "), cls: "obsidian-icon-picker-more" });
       const remove = row.createEl("button", {
-        text: "Entfernen",
+        text: t("gal.remove"),
         cls: "obsidian-icon-gallery-remove",
       }) as HTMLButtonElement;
       remove.onclick = () => {
@@ -130,12 +131,12 @@ export class IconGalleryModal extends Modal {
     }
     const unused = [...local].sort((a, b) => a.localeCompare(b));
     contentEl.createEl("div", {
-      text: `Ungenutzt (${unused.length})`,
+      text: t("gal.unused", { count: unused.length }),
       cls: "obsidian-icon-picker-group",
     });
     if (unused.length === 0) {
       contentEl.createDiv({
-        text: "Alles in Verwendung",
+        text: t("gal.allUsed"),
         cls: "obsidian-icon-picker-more",
       });
     }
@@ -147,7 +148,7 @@ export class IconGalleryModal extends Modal {
     }
     if (unused.length > 100) {
       contentEl.createDiv({
-        text: `… ${unused.length - 100} weitere`,
+        text: t("gal.more", { count: unused.length - 100 }),
         cls: "obsidian-icon-picker-more",
       });
     }
@@ -167,9 +168,13 @@ export class IconCheckModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h3", { text: "Icons prüfen" });
+    contentEl.createEl("h3", { text: t("check.title") });
     contentEl.createDiv({
-      text: `${this.result.used} vergeben, ${this.result.unused} ungenutzt, ${this.result.broken.length} defekt`,
+      text: t("check.summary", {
+        used: this.result.used,
+        unused: this.result.unused,
+        broken: this.result.broken.length,
+      }),
       cls: "obsidian-icon-picker-more",
     });
     for (const [path, ref] of this.result.broken) {

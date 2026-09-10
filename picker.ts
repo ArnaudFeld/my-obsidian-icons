@@ -9,18 +9,7 @@ import {
   themeVar,
 } from "./icons";
 import { DEVICON_TAGS } from "./cdn-catalog";
-
-const COLOR_NAMES: Record<(typeof THEME_COLORS)[number], string> = {
-  red: "Rot",
-  orange: "Orange",
-  yellow: "Gelb",
-  green: "Grün",
-  cyan: "Türkis",
-  blue: "Blau",
-  purple: "Lila",
-  pink: "Pink",
-  gray: "Grau",
-};
+import { colorName, t } from "./i18n";
 
 export interface PickerResult {
   icon: string;
@@ -115,12 +104,12 @@ export class IconPickerModal extends Modal {
     this.localRefs = localSet;
     const groupFor = (ref: string): string =>
       ref.startsWith("devicon/")
-        ? "Devicon"
+        ? "devicon"
         : ref.startsWith("simple/")
-          ? "Simple"
+          ? "simple"
           : ref.startsWith("selfhosted/")
-            ? "Self-Hosted"
-            : "Eigene";
+            ? "selfhosted"
+            : "own";
     const byRef = new Map<string, PickerItem>();
     for (const ref of this.cdnRefs) {
       byRef.set(ref, {
@@ -145,7 +134,7 @@ export class IconPickerModal extends Modal {
       .map((id) => ({
         ref: `lucide:${id}`,
         label: id,
-        group: "Lucide",
+        group: "lucide",
         hay: hayForPicker(`lucide:${id}`),
       }));
     const known = new Set([
@@ -157,13 +146,23 @@ export class IconPickerModal extends Modal {
     for (const ref of this.meta?.favorites ?? []) {
       if (known.has(ref) && !seenMeta.has(ref)) {
         seenMeta.add(ref);
-        metaItems.push({ ref, label: ref, group: "Favoriten", hay: hayForPicker(ref) });
+        metaItems.push({
+          ref,
+          label: ref,
+          group: "favorites",
+          hay: hayForPicker(ref),
+        });
       }
     }
     for (const ref of this.meta?.recent ?? []) {
       if (known.has(ref) && !seenMeta.has(ref)) {
         seenMeta.add(ref);
-        metaItems.push({ ref, label: ref, group: "Zuletzt", hay: hayForPicker(ref) });
+        metaItems.push({
+          ref,
+          label: ref,
+          group: "recent",
+          hay: hayForPicker(ref),
+        });
       }
     }
     this.items = [...metaItems, ...svgItems, ...lucideItems];
@@ -174,7 +173,7 @@ export class IconPickerModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("obsidian-icon-picker");
-    contentEl.createEl("h3", { text: "Icon wählen" });
+    contentEl.createEl("h3", { text: t("pick.title") });
     this.darkLine = contentEl.createDiv({
       cls: "obsidian-icon-picker-more",
     });
@@ -183,13 +182,15 @@ export class IconPickerModal extends Modal {
     const names = await this.store.listSvgNames();
     this.buildItems(names);
 
-    new Setting(contentEl).setName("Suchen").addText((text) => {
-      text.setPlaceholder("Name tippen …").onChange((value) => {
-        this.query = value;
-        window.clearTimeout(this.searchTimer);
-        this.searchTimer = window.setTimeout(() => this.renderList(), 100);
+    new Setting(contentEl)
+      .setName(t("pick.search.name"))
+      .addText((text) => {
+        text.setPlaceholder(t("pick.search.ph")).onChange((value) => {
+          this.query = value;
+          window.clearTimeout(this.searchTimer);
+          this.searchTimer = window.setTimeout(() => this.renderList(), 100);
+        });
       });
-    });
 
     this.listEl = contentEl.createDiv({ cls: "obsidian-icon-picker-list" });
     this.renderList();
@@ -199,7 +200,7 @@ export class IconPickerModal extends Modal {
       cls: "obsidian-icon-picker-colorhead",
     });
     colorHead.createEl("div", {
-      text: "Farbe",
+      text: t("pick.color"),
       cls: "obsidian-icon-picker-label",
     });
     this.colorNameEl = colorHead.createEl("div", {
@@ -217,10 +218,10 @@ export class IconPickerModal extends Modal {
     const none = noneWrap.createEl("button", {
       text: "✕",
       cls: "obsidian-icon-dot obsidian-icon-dot-none",
-      attr: { title: "Keine Farbe, Standard verwenden" },
+      attr: { title: t("pick.colorNoneTip") },
     });
     noneWrap.createEl("div", {
-      text: "Aus",
+      text: t("pick.colorOff"),
       cls: "obsidian-icon-dotlabel",
     });
     none.onclick = () => {
@@ -231,7 +232,7 @@ export class IconPickerModal extends Modal {
       const wrap = dots.createDiv({ cls: "obsidian-icon-dotwrap" });
       const dot = wrap.createEl("button", {
         cls: "obsidian-icon-dot",
-        attr: { "aria-label": COLOR_NAMES[name], title: COLOR_NAMES[name] },
+        attr: { "aria-label": colorName(name), title: colorName(name) },
       });
       dot.style.background = themeVar(name) ?? `var(--color-${name})`;
       dot.dataset.color = name;
@@ -240,18 +241,18 @@ export class IconPickerModal extends Modal {
         this.refreshColorUI();
       };
       wrap.createEl("div", {
-        text: COLOR_NAMES[name],
+        text: colorName(name),
         cls: "obsidian-icon-dotlabel",
       });
     }
     const hexRow = dotsCol.createDiv({ cls: "obsidian-icon-picker-hexrow" });
     this.hexSwatch = hexRow.createEl("input", {
       cls: "obsidian-icon-dot-hex",
-      attr: { type: "color", title: "Freie Farbe wählen" },
+      attr: { type: "color", title: t("pick.colorFree") },
     }) as HTMLInputElement;
     this.hexText = hexRow.createEl("input", {
       cls: "obsidian-icon-picker-hextext",
-      attr: { type: "text", placeholder: "#339af0", title: "Hex Wert" },
+      attr: { type: "text", placeholder: "#339af0", title: t("pick.hex") },
     }) as HTMLInputElement;
     this.hexSwatch.oninput = () => {
       this.color = this.hexSwatch.value;
@@ -271,31 +272,28 @@ export class IconPickerModal extends Modal {
     this.refreshColorUI();
 
     const footer = contentEl.createDiv({ cls: "obsidian-icon-picker-footer" });
-    const cancel = footer.createEl("button", { text: "Abbrechen" });
+    const cancel = footer.createEl("button", { text: t("pick.cancel") });
     cancel.onclick = () => this.close();
     this.saveFileBtn = footer.createEl("button", {
-      text: "Als Datei speichern",
+      text: t("pick.saveFile"),
     }) as HTMLButtonElement;
     this.saveFileBtn.onclick = () => {
       if (this.selected && this.onSaveFile) this.onSaveFile(this.selected);
     };
     this.saveBtn = footer.createEl("button", {
-      text: "Übernehmen",
+      text: t("pick.apply"),
       cls: "mod-cta",
     }) as HTMLButtonElement;
     this.saveBtn.disabled = !this.selected;
     this.updateSaveFileBtn();
     this.darkBtn = footer.createEl("button", {
-      text: "Dark-Icon wählen",
-      attr: {
-        title:
-          "Icon für den Dark Mode festlegen: danach ein Icon aus der Liste anklicken, es wird nur im dunklen Theme gezeigt.",
-      },
+      text: t("pick.dark"),
+      attr: { title: t("pick.darkTip") },
     }) as HTMLButtonElement;
     this.darkBtn.onclick = () => {
       this.pickDark = !this.pickDark;
       this.darkBtn.setText(
-        this.pickDark ? "Auswahl abbrechen" : "Dark-Icon wählen",
+        this.pickDark ? t("pick.darkCancel") : t("pick.dark"),
       );
       this.renderDarkLine();
     };
@@ -313,11 +311,11 @@ export class IconPickerModal extends Modal {
     };
 
     new Setting(contentEl)
-      .setName("Größe (optional)")
-      .setDesc("Leer lassen für Standard, Zahl gilt als Pixel.")
+      .setName(t("pick.size.name"))
+      .setDesc(t("pick.size.desc"))
       .addText((text) =>
         text
-          .setPlaceholder("1.4em oder 20")
+          .setPlaceholder(t("pick.size.ph"))
           .setValue(this.size ?? "")
           .onChange((value) => {
             this.size = value;
@@ -341,13 +339,9 @@ export class IconPickerModal extends Modal {
       el.toggleClass("is-selected", isNone || isColor);
     });
     if (!this.color) {
-      this.colorNameEl.textContent = "Standard";
-    } else if (
-      (THEME_COLORS as readonly string[]).includes(this.color) &&
-      this.color in COLOR_NAMES
-    ) {
-      this.colorNameEl.textContent =
-        COLOR_NAMES[this.color as (typeof THEME_COLORS)[number]];
+      this.colorNameEl.textContent = t("pick.colorDefault");
+    } else if ((THEME_COLORS as readonly string[]).includes(this.color)) {
+      this.colorNameEl.textContent = colorName(this.color);
     } else {
       this.colorNameEl.textContent = this.color;
     }
@@ -366,7 +360,9 @@ export class IconPickerModal extends Modal {
       const low = ratio !== null && ratio < 3;
       this.colorWarnEl.style.display = low ? "" : "none";
       if (low) {
-        this.colorWarnEl.textContent = `Schwacher Kontrast in diesem Theme (${ratio.toFixed(1)}:1)`;
+        this.colorWarnEl.textContent = t("pick.contrast", {
+          ratio: ratio.toFixed(1),
+        });
       }
     }
     void this.updatePreview();
@@ -395,13 +391,13 @@ export class IconPickerModal extends Modal {
   private renderList(): void {
     this.listEl.empty();
     const groups = [
-      "Favoriten",
-      "Zuletzt",
-      "Eigene",
-      "Devicon",
-      "Simple",
-      "Self-Hosted",
-      "Lucide",
+      "favorites",
+      "recent",
+      "own",
+      "devicon",
+      "simple",
+      "selfhosted",
+      "lucide",
     ];
     const terms = this.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const buckets = new Map<string, PickerItem[]>();
@@ -422,7 +418,7 @@ export class IconPickerModal extends Modal {
       if (!rows || rows.length === 0) continue;
       any = true;
       this.listEl.createEl("div", {
-        text: group,
+        text: t(`group.${group}`),
         cls: "obsidian-icon-picker-group",
       });
       for (const item of rows.slice(0, PER_GROUP_LIMIT)) {
@@ -439,7 +435,7 @@ export class IconPickerModal extends Modal {
           const fav = row.createEl("button", {
             text: this.meta.favorites.includes(item.ref) ? "★" : "☆",
             cls: "obsidian-icon-picker-fav",
-            attr: { title: "Favorit umschalten" },
+            attr: { title: t("pick.favToggle") },
           }) as HTMLButtonElement;
           fav.onclick = (event) => {
             event.stopPropagation();
@@ -453,14 +449,14 @@ export class IconPickerModal extends Modal {
       }
       if (rows.length > PER_GROUP_LIMIT) {
         this.listEl.createDiv({
-          text: `… ${rows.length - PER_GROUP_LIMIT} weitere, Suche einschränken`,
+          text: t("pick.more", { count: rows.length - PER_GROUP_LIMIT }),
           cls: "obsidian-icon-picker-more",
         });
       }
     }
     if (!any) {
       this.listEl.createDiv({
-        text: "Nichts gefunden",
+        text: t("pick.none"),
         cls: "obsidian-icon-picker-more",
       });
     }
@@ -478,13 +474,12 @@ export class IconPickerModal extends Modal {
   private renderDarkLine(): void {
     if (!this.darkLine) return;
     if (this.pickDark) {
-      this.darkLine.textContent =
-        "Jetzt ein Icon aus der Liste anklicken → wird Dark-Mode-Icon";
+      this.darkLine.textContent = t("pick.darkHint");
       return;
     }
     this.darkLine.textContent = this.darkIcon
-      ? `Dark Mode: ${this.darkIcon}`
-      : "Dark Mode: wie helles Icon";
+      ? t("pick.darkValue", { value: this.darkIcon })
+      : t("pick.darkSame");
   }
 
   private async selectRow(item: PickerItem, row: HTMLElement): Promise<void> {
@@ -508,7 +503,7 @@ export class IconPickerModal extends Modal {
     if (this.pickDark) {
       this.darkIcon = item.ref;
       this.pickDark = false;
-      this.darkBtn.setText("Dark-Icon wählen");
+      this.darkBtn.setText(t("pick.dark"));
       this.renderDarkLine();
       this.saveBtn.disabled = !this.selected;
       row.removeClass("is-selected");
