@@ -235,6 +235,7 @@ const STRINGS: Record<string, Record<string, string>> = {
     "pick.size.ph": "1.4em or 20",
     "pick.color": "Color",
     "pick.colorOff": "Off",
+    "pick.colorDefault": "Default",
     "pick.colorNoneTip": "No color, use default",
     "pick.colorFree": "Pick a custom color",
     "pick.hex": "Hex value",
@@ -623,12 +624,15 @@ export function colorName(name: string): string {
   return t(`color.${name}`);
 }
 
-/** Schlüssel, die in einer Sprache gegenüber Englisch fehlen. */
+/** Schlüssel, die in einer Sprache gegenüber der Vereinigungsmenge fehlen. */
 export function missingTranslations(): { lang: string; keys: string[] }[] {
-  const base = Object.keys(STRINGS.en);
+  const all = new Set<string>();
+  for (const table of Object.values(STRINGS)) {
+    for (const key of Object.keys(table)) all.add(key);
+  }
   const out: { lang: string; keys: string[] }[] = [];
   for (const [lang, table] of Object.entries(STRINGS)) {
-    const keys = base.filter((key) => !(key in table));
+    const keys = [...all].filter((key) => !(key in table));
     if (keys.length > 0) out.push({ lang, keys });
   }
   return out;

@@ -650,6 +650,7 @@ check("UI Texte in vier Sprachen", () => {
   setStubLanguage("it");
   assert.equal(t("menu.change"), "Change icon");
   setStubLanguage("en");
+  assert.equal(t("pick.colorDefault"), "Default");
 });
 
 check("Explorer Badge Schlüssel", () => {

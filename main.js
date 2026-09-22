@@ -5284,6 +5284,7 @@ var STRINGS = {
     "pick.size.ph": "1.4em or 20",
     "pick.color": "Color",
     "pick.colorOff": "Off",
+    "pick.colorDefault": "Default",
     "pick.colorNoneTip": "No color, use default",
     "pick.colorFree": "Pick a custom color",
     "pick.hex": "Hex value",
