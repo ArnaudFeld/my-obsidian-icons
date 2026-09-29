@@ -1,7 +1,7 @@
 {
   "id": "my-obsidian-icons",
   "name": "M.O.I. – My Obsidian Icons",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "minAppVersion": "1.0.0",
   "description": "Custom SVGs, Devicon, Simple Icons and Lucide as {{icon:name}} in notes and via right-click in the explorer. Local, lightweight, yours.",
   "author": "arnaud",
