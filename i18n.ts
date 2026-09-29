@@ -144,7 +144,6 @@ const STRINGS: Record<string, Record<string, string>> = {
     "check.title": "Icons prüfen",
     "check.summary": "{used} vergeben, {unused} ungenutzt, {broken} defekt",
 
-    "ex.abort": "Export abgebrochen: {path} existiert bereits",
     "ex.done": "Exportiert: {path}",
     "ex.tooBig": "Import fehlgeschlagen: Datei zu groß",
     "ex.invalid": "Import fehlgeschlagen: keine gültige Datei",
@@ -285,7 +284,6 @@ const STRINGS: Record<string, Record<string, string>> = {
     "check.title": "Check icons",
     "check.summary": "{used} assigned, {unused} unused, {broken} broken",
 
-    "ex.abort": "Export cancelled: {path} already exists",
     "ex.done": "Exported: {path}",
     "ex.tooBig": "Import failed: file too large",
     "ex.invalid": "Import failed: not a valid file",
@@ -378,7 +376,7 @@ const STRINGS: Record<string, Record<string, string>> = {
       "Laissez vide pour la valeur par défaut, un nombre simple compte en pixels.",
     "pick.size.ph": "1.4em ou 20",
     "pick.color": "Couleur",
-    "pick.colorOff": "Off",
+    "pick.colorOff": "Aucune",
     "pick.colorDefault": "Par défaut",
     "pick.colorNoneTip": "Aucune couleur, utiliser la valeur par défaut",
     "pick.colorFree": "Choisir une couleur libre",
@@ -430,7 +428,6 @@ const STRINGS: Record<string, Record<string, string>> = {
     "check.title": "Vérifier les icônes",
     "check.summary": "{used} attribuées, {unused} non utilisées, {broken} cassées",
 
-    "ex.abort": "Export annulé : {path} existe déjà",
     "ex.done": "Exporté : {path}",
     "ex.tooBig": "Échec de l'import : fichier trop volumineux",
     "ex.invalid": "Échec de l'import : fichier non valide",
@@ -523,7 +520,7 @@ const STRINGS: Record<string, Record<string, string>> = {
       "Déjalo vacío para el valor por defecto; un número simple cuenta como píxeles.",
     "pick.size.ph": "1.4em o 20",
     "pick.color": "Color",
-    "pick.colorOff": "Off",
+    "pick.colorOff": "Ninguno",
     "pick.colorDefault": "Por defecto",
     "pick.colorNoneTip": "Sin color, usar el valor por defecto",
     "pick.colorFree": "Elegir un color libre",
@@ -575,7 +572,6 @@ const STRINGS: Record<string, Record<string, string>> = {
     "check.title": "Comprobar iconos",
     "check.summary": "{used} asignados, {unused} sin usar, {broken} defectuosos",
 
-    "ex.abort": "Exportación cancelada: {path} ya existe",
     "ex.done": "Exportado: {path}",
     "ex.tooBig": "Error de importación: archivo demasiado grande",
     "ex.invalid": "Error de importación: archivo no válido",

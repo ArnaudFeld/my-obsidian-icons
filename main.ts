@@ -471,7 +471,9 @@ export default class MoiPlugin extends Plugin {
       this.app as unknown as { plugins?: { plugins?: Record<string, unknown> } }
     ).plugins?.plugins;
     if (!plugins) return;
-    const found = CONFLICT_IDS.filter((id) => id in plugins);
+    const found = CONFLICT_IDS.filter((id) =>
+      Object.prototype.hasOwnProperty.call(plugins, id),
+    );
     if (found.length > 0) {
       new Notice(
         `M.O.I.: ${t("notice.conflict", { names: found.join(", ") })}`,
@@ -503,8 +505,13 @@ export default class MoiPlugin extends Plugin {
       });
       return;
     }
+    // Der Hook hängt an jedem Speichern im Vault. Alles ausserhalb des Icon
+    // Ordners und ausser SVG kann weder den Icon Cache noch den Katalog Cache
+    // betreffen, also frueh zurueck.
+    const isSvg = path.toLowerCase().endsWith(".svg");
+    if (!isSvg && !this.icons.handlesPath(path)) return;
     this.icons.invalidatePath(path);
-    if (path.toLowerCase().endsWith(".svg")) clearCatalogCache();
+    if (isSvg) clearCatalogCache();
   }
 
   private onRename(file: TAbstractFile, oldPath: string): void {

@@ -19,7 +19,6 @@ export const MAX_IMPORT_FILES = 500;
 export const MAX_IMPORT_ENTRIES = 5000;
 
 async function collectFiles(
-  app: App,
   store: IconStore,
   refs: string[],
 ): Promise<Record<string, string>> {
@@ -41,7 +40,6 @@ function refsOf(entry: MappingEntry): string[] {
 
 /** Mapping plus genutzte SVG Dateien als Paket für Zweit Vaults. */
 export async function buildPackage(
-  app: App,
   store: IconStore,
   mapping: MappingStore,
 ): Promise<IconPackage> {
@@ -57,8 +55,23 @@ export async function buildPackage(
     version: 1,
     exportedAt: new Date().toISOString(),
     mapping: fullMapping,
-    files: await collectFiles(app, store, refs),
+    files: await collectFiles(store, refs),
   };
+}
+
+/** Freier Dateiname am Stempel, notfalls mit -2, -3 für den zweiten Export. */
+export function freeExportName(
+  taken: (path: string) => boolean,
+  stamp: string,
+): string {
+  const base = `icons-export-${stamp}`;
+  let path = `${base}.json`;
+  let n = 2;
+  while (taken(path)) {
+    path = `${base}-${n}.json`;
+    n++;
+  }
+  return path;
 }
 
 export async function exportIcons(
@@ -66,13 +79,12 @@ export async function exportIcons(
   store: IconStore,
   mapping: MappingStore,
 ): Promise<void> {
-  const pkg = await buildPackage(app, store, mapping);
+  const pkg = await buildPackage(store, mapping);
   const stamp = new Date().toISOString().slice(0, 10);
-  const path = `icons-export-${stamp}.json`;
-  if (app.vault.getAbstractFileByPath(path) instanceof TFile) {
-    new Notice(t("ex.abort", { path }));
-    return;
-  }
+  const path = freeExportName(
+    (p) => app.vault.getAbstractFileByPath(p) instanceof TFile,
+    stamp,
+  );
   await app.vault.create(path, JSON.stringify(pkg, null, 2));
   new Notice(t("ex.done", { path }));
 }
@@ -196,6 +208,13 @@ export function importIcons(
             skipped++;
             continue;
           }
+          // Die Bereinigung kann alles entfernen, etwa ein reines Script oder
+          // ein fremdes Fragment. Dann keine leere Datei in den Vault schreiben.
+          const clean = sanitizeSvg(svg);
+          if (!clean.includes("<svg")) {
+            skipped++;
+            continue;
+          }
           const path = `${folder}/${name}.svg`;
           if (app.vault.getAbstractFileByPath(path)) {
             skipped++;
@@ -208,9 +227,9 @@ export function importIcons(
               await app.vault.adapter.mkdir(dir);
             }
           }
-          await app.vault.create(path, sanitizeSvg(svg));
+          await app.vault.create(path, clean);
           written++;
-          writtenBytes += svg.length;
+          writtenBytes += clean.length;
         }
         const {
           pathItems,

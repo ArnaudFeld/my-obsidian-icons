@@ -17,6 +17,10 @@ export interface SuggestItem {
 
 const SUGGEST_LIMIT = 12;
 
+/** Wie viele Treffer die Suche überhaupt durchsieht, bevor sie aufgibt. Das
+ *  ist bewusst mehr als SUGGEST_LIMIT, sonst filtert die erste Gruppe allein. */
+const SUGGEST_SCAN_LIMIT = 80;
+
 export interface CatalogRefs {
   refs: string[];
   deviconTags: Record<string, string[]>;
@@ -67,18 +71,6 @@ export async function collectCatalogRefs(
 /** Suggest Cache leeren, nach Neu laden und bei SVG Anlage oder Löschen. */
 export function clearCatalogCache(): void {
   catalogCache = null;
-}
-
-/** Ältere Form ohne Self-Hosted. */
-export async function collectIconRefs(
-  store: IconStore,
-  cdnEnabled: boolean,
-): Promise<string[]> {
-  const catalog = await collectCatalogRefs(store, {
-    cdn: cdnEnabled,
-    selfhost: false,
-  });
-  return catalog.refs;
 }
 
 interface CachedCatalog {
@@ -171,7 +163,7 @@ export class IconSuggest extends EditorSuggest<SuggestItem> {
     const out: SuggestItem[] = [];
     const seen = new Set<string>();
     for (const ref of catalog.refs) {
-      if (out.length >= 80) break;
+      if (out.length >= SUGGEST_SCAN_LIMIT) break;
       if (seen.has(ref)) continue;
       const haystack = hay.get(ref) ?? [];
       if (

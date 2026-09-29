@@ -276,14 +276,27 @@ const THEME_VAR_FALLBACK: Record<string, string> = {
 };
 
 /** Theme Name -> CSS Variable, Hex und CSS Farben direkt, sonst null. */
+const themeVarCache = new Map<string, string | null>();
+
 export function themeVar(color: string | undefined): string | null {
   if (!color) return null;
   const name = color.trim().toLowerCase();
+  const hit = themeVarCache.get(name);
+  if (hit !== undefined) return hit;
+  const out = computeThemeVar(name);
+  if (themeVarCache.size > 500) themeVarCache.clear();
+  themeVarCache.set(name, out);
+  return out;
+}
+
+/** CSS.supports fragt den Browser, das kommt bei jedem Shortcode Parameter
+ *  erneut, deshalb liegt das Ergebnis im Cache. */
+function computeThemeVar(name: string): string | null {
   if ((THEME_COLORS as readonly string[]).includes(name)) {
     return `var(${THEME_VAR_FALLBACK[name] ?? `--color-${name}`})`;
   }
   try {
-    if (CSS.supports("color", color)) return color;
+    if (CSS.supports("color", name)) return name;
   } catch {
     return null;
   }

@@ -6,6 +6,10 @@ import { t } from "./i18n";
 /** Gleichzeitige Vorschaubilder, wie im Explorer begrenzt. */
 const PAINT_CONCURRENCY = 6;
 
+/** Zeilen je Schritt. Darüber wird nicht auf einmal alles gebaut, ein Vault
+ *  mit tausend Zuordnungen sonst mit einem Ruck. */
+const PAGE_SIZE = 150;
+
 /** Dateinamen im Icon Ordner, die kein Mapping Eintrag nutzt. */
 export function unusedSvgNames(
   localNames: string[],
@@ -63,26 +67,14 @@ export class IconGalleryModal extends Modal {
     }
   }
 
-  private async render(): Promise<void> {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("obsidian-icon-gallery");
-    contentEl.createEl("h3", { text: t("gal.title") });
-
-    const used = this.mapping.entries();
-    const extRules = this.mapping.extEntries();
-    contentEl.createEl("div", {
-      text: t("gal.assigned", { count: used.length, rules: extRules.length }),
-      cls: "obsidian-icon-picker-group",
-    });
-    if (used.length === 0) {
-      contentEl.createDiv({
-        text: t("gal.empty"),
-        cls: "obsidian-icon-picker-more",
-      });
-    }
-    const paints: { el: HTMLElement; ref: IconRef; color?: string }[] = [];
-    for (const [path, entry] of used) {
+  /** Einen Block vergebener Icons anbauen, ab from, höchstens PAGE_SIZE Stück. */
+  private appendUsedRows(
+    contentEl: HTMLElement,
+    used: [string, MappingEntry][],
+    from: number,
+    paints: { el: HTMLElement; ref: IconRef; color?: string }[],
+  ): void {
+    for (const [path, entry] of used.slice(from, from + PAGE_SIZE)) {
       const row = contentEl.createDiv({ cls: "obsidian-icon-gallery-row" });
       const preview = row.createDiv({ cls: "obsidian-icon-picker-preview" });
       const ref = parseIconRef(entry.icon);
@@ -106,6 +98,57 @@ export class IconGalleryModal extends Modal {
         });
       };
     }
+  }
+
+  /** Knopf für den Rest, nach jedem Schritt hängt sich der nächste an. */
+  private addMoreButton(
+    contentEl: HTMLElement,
+    used: [string, MappingEntry][],
+    from: number,
+    append: (
+      from: number,
+      paints: { el: HTMLElement; ref: IconRef; color?: string }[],
+    ) => void,
+  ): void {
+    if (from >= used.length) return;
+    const more = contentEl.createEl("button", {
+      text: t("gal.more", { count: used.length - from }),
+      cls: "obsidian-icon-picker-more",
+    }) as HTMLButtonElement;
+    more.onclick = () => {
+      more.detach();
+      const stepPaints: { el: HTMLElement; ref: IconRef; color?: string }[] = [];
+      append(from, stepPaints);
+      this.addMoreButton(contentEl, used, from + PAGE_SIZE, append);
+      void this.paintAll(stepPaints);
+    };
+  }
+
+  private async render(): Promise<void> {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("obsidian-icon-gallery");
+    contentEl.createEl("h3", { text: t("gal.title") });
+
+    const used = this.mapping.entries();
+    const extRules = this.mapping.extEntries();
+    contentEl.createEl("div", {
+      text: t("gal.assigned", { count: used.length, rules: extRules.length }),
+      cls: "obsidian-icon-picker-group",
+    });
+    if (used.length === 0) {
+      contentEl.createDiv({
+        text: t("gal.empty"),
+        cls: "obsidian-icon-picker-more",
+      });
+    }
+    const paints: { el: HTMLElement; ref: IconRef; color?: string }[] = [];
+    const appendUsed = (
+      from: number,
+      stepPaints: { el: HTMLElement; ref: IconRef; color?: string }[],
+    ): void => this.appendUsedRows(contentEl, used, from, stepPaints);
+    this.appendUsedRows(contentEl, used, 0, paints);
+    this.addMoreButton(contentEl, used, PAGE_SIZE, appendUsed);
 
     contentEl.createEl("div", {
       text: t("gal.ext", { count: extRules.length }),

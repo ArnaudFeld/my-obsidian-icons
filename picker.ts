@@ -498,7 +498,22 @@ export class IconPickerModal extends Modal {
         if (svg) preview.innerHTML = svg;
         else preview.textContent = "?";
       }
-      if (!svg) return;
+      if (!svg) {
+        // Abruf gescheitert: Auswahl und Buttons auf den vorigen Stand
+        // zurueck, sonst bleibt der Dialog bis zum naechsten Klick gesperrt.
+        this.saveBtn.disabled = !this.selected;
+        row.removeClass("is-selected");
+        if (this.selected) {
+          this.listEl
+            .querySelectorAll(".obsidian-icon-picker-row")
+            .forEach((el) => {
+              if (el.querySelector(".obsidian-icon-picker-name")?.textContent === this.selected) {
+                el.addClass("is-selected");
+              }
+            });
+        }
+        return;
+      }
     }
     if (this.pickDark) {
       this.darkIcon = item.ref;

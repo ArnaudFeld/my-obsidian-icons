@@ -8,7 +8,7 @@ import {
 } from "../icons";
 import { MappingStore, normalizeEntry, normalizeExt } from "../mapping";
 import type { IconMapping } from "../mapping";
-import { collectImportEntries } from "../exchange";
+import { collectImportEntries, freeExportName } from "../exchange";
 import {
   currentLanguage,
   slogan,
@@ -19,6 +19,7 @@ import {
 import { badgeKey, isBadgeMutation } from "../explorer";
 import { unusedSvgNames } from "../gallery";
 import { setStubLanguage, setStubFetch, resetStubFetch, stubFetchCalls } from "./obsidian-stub";
+import type { App as ObsidianApp } from "obsidian";
 import { pickVariant } from "../tabs-titles";
 import {
   CdnCache,
@@ -804,7 +805,8 @@ await checkAsync("Parallele Vault Lesevorgänge teilen sich einen Zugriff", asyn
       reads++;
       return realRead(file);
     };
-    const store = new IconStore(app, () => "icons");
+    // Der Stub ist bewusst nur ein Gerüst, der echte Typ kommt daher hierher.
+    const store = new IconStore(app as unknown as ObsidianApp, () => "icons");
     const [a, b, d] = await Promise.all([
       store.getSvg("server"),
       store.getSvg("server"),
@@ -960,6 +962,20 @@ check("Inline-Abschnitt mit drei Backticks verschiebt die Zaehlung nicht", () =>
   assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:e}}")), true);
   // Die Aufzaehlung ist Text, da stehen genau zwei echte Marken ueber ihr
   assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:f}}")), false);
+});
+
+check("Export nimmt den naechsten freien Namen", () => {
+  const taken = new Set(["icons-export-2026-09-29.json", "icons-export-2026-09-29-2.json"]);
+  assert.equal(freeExportName((p) => taken.has(p), "2026-09-29"), "icons-export-2026-09-29-3.json");
+  assert.equal(freeExportName((p) => taken.has(p), "2026-09-30"), "icons-export-2026-09-30.json");
+  const leer = new Set<string>();
+  assert.equal(freeExportName((p) => leer.has(p), "2026-09-29"), "icons-export-2026-09-29.json");
+});
+
+check("Bereinigung ohne svg ergibt leeren String", () => {
+  assert.equal(sanitizeSvg("<svg><script>alert(1)</script></svg>"), "<svg></svg>");
+  assert.equal(sanitizeSvg("<p>kein svg</p>"), "");
+  assert.equal(sanitizeSvg("<svg><foreignObject>x</foreignObject></svg>"), "<svg></svg>");
 });
 
 console.log(`# ${count} Tests bestanden (final)`);
