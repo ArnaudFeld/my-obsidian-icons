@@ -18,10 +18,8 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import type { EditorState, Extension } from "@codemirror/state";
+import type { Extension } from "@codemirror/state";
 import { StateEffect } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
-import type { SyntaxNode } from "@lezer/common";
 import {
   IconRef,
   IconStore,
@@ -34,6 +32,7 @@ import {
 } from "./icons";
 import { MappingStore, normalizeExt } from "./mapping";
 import { MoiSettings, DEFAULT_SETTINGS, readSettings } from "./settings";
+import { insideCode } from "./code-context";
 import { ExplorerIcons } from "./explorer";
 import { IconPickerModal, PickerMeta, PickerResult } from "./picker";
 import { IconGalleryModal, IconCheckModal } from "./gallery";
@@ -163,28 +162,6 @@ class IconWidget extends WidgetType {
 /** Theme Wechsel als Effekt, damit Live Preview Icons neu bauen. */
 const iconThemeEffect = StateEffect.define<number>();
 
-/**
- * Namen, mit denen der Markdown Parser Code ausweist. Fenced, Inline und die
- * Backticks selbst. Der Namens Test greift auch bei Versionen, die es anders
- * benennen, deshalb bewusst unscharf.
- */
-export function isCodeNodeName(name: string): boolean {
-  return /code/i.test(name);
-}
-
-/**
- * Liegt die Position im Quelltext, dann bleibt der Text stehen. Ohne diese
- * Prüfung würde ein Beispiel für {{icon:…}} im Codeblock als Icon erscheinen,
- * im Lesemodus und beim Tippen gleichermaßen.
- */
-export function insideCodeAt(state: EditorState, pos: number): boolean {
-  const node = syntaxTree(state).resolveInner(pos);
-  for (let cur: SyntaxNode | null = node; cur; cur = cur.parent) {
-    if (isCodeNodeName(cur.name)) return true;
-  }
-  return false;
-}
-
 /** Im gerenderten HTML: Text unter pre oder code gehört dem Nutzer. */
 export function insideRenderedCode(node: Node): boolean {
   const parent = node.parentElement;
@@ -198,7 +175,7 @@ function buildIconExtension(
   const matcher = new MatchDecorator({
     regexp: new RegExp(ICON_TAG_RE.source, "g"),
     decoration: (match, view, pos) => {
-      if (insideCodeAt(view.state, pos)) return null;
+      if (insideCode(view.state.doc, pos)) return null;
       const ref = parseIconRef(match[1] ?? "");
       if (!ref || ref.kind === "emoji") return null;
       const end = pos + match[0].length;

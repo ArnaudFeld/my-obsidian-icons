@@ -29,6 +29,12 @@ import {
   selfhostLightRefs,
 } from "../cdn";
 import { DEFAULT_SETTINGS, readSettings } from "../settings";
+import {
+  insideCode,
+  insideInlineCode,
+  isFenceLine,
+  type LineSource,
+} from "../code-context";
 import { cachedCatalogRefs } from "../suggest";
 import { IconStore } from "../icons";
 import { App } from "./obsidian-stub";
@@ -854,5 +860,106 @@ await checkAsync(
     }
   },
 );
+
+/** Attrappe für das CodeMirror Dokument, nur die von insideCode benutzten Teile. */
+function fakeDoc(text: string): LineSource {
+  const rows = text.split("\n");
+  let from = 0;
+  const line = (n: number) => ({ number: n, text: rows[n - 1] ?? "" });
+  return {
+    line,
+    lineAt: (pos: number) => {
+      let left = pos;
+      for (let n = 1; n <= rows.length; n++) {
+        if (left <= (rows[n - 1] ?? "").length) {
+          return { number: n, from, text: rows[n - 1] ?? "" };
+        }
+        left -= (rows[n - 1] ?? "").length + 1;
+        from += (rows[n - 1] ?? "").length + 1;
+      }
+      return { number: rows.length, from, text: rows[rows.length - 1] ?? "" };
+    },
+  };
+}
+
+check("Blockmarke erkennt fenced Zeile, sonst nichts", () => {
+  assert.equal(isFenceLine("```"), true);
+  assert.equal(isFenceLine("```json"), true);
+  assert.equal(isFenceLine("   ~~~"), true);
+  assert.equal(isFenceLine("````"), true);
+  assert.equal(isFenceLine("{{icon:x}}"), false);
+  assert.equal(isFenceLine("    ```"), false);
+  assert.equal(isFenceLine("text ``` more"), false);
+  assert.equal(isFenceLine(""), false);
+  // Backticks im Info-String machen die Zeile zum Inline-Abschnitt
+  assert.equal(isFenceLine("```{{icon:x}}```"), false);
+  assert.equal(isFenceLine("~~~```"), true);
+});
+
+check("Inline-Code am Backtick Lauf erkannt", () => {
+  assert.equal(insideInlineCode("`{{icon:x}}`", 1), true);
+  assert.equal(insideInlineCode("``{{icon:x}}``", 2), true);
+  assert.equal(insideInlineCode("```{{icon:x}}```", 3), true);
+  assert.equal(insideInlineCode("{{icon:x}}", 0), false);
+  assert.equal(insideInlineCode("- {{icon:x}}", 2), false);
+  // Abschnitt wurde vor der Position schon geschlossen
+  assert.equal(insideInlineCode("`a` {{icon:x}}", 6), false);
+  // Ungerade Anzahl, weil der Abschluss erst in der nächsten Zeile kommt
+  assert.equal(insideInlineCode("`a {{icon:x}}", 4), true);
+});
+
+check("Echter Codeblock bleibt Text, Fliesstext nicht", () => {
+  const block = "```\n{{icon:server}}\n```\n";
+  assert.equal(insideCode(fakeDoc(block), block.indexOf("{{icon")), true);
+
+  const plain = "# Titel\n\n{{icon:server}}\n";
+  assert.equal(insideCode(fakeDoc(plain), plain.indexOf("{{icon")), false);
+
+  const list = "- {{icon:server}}\n";
+  assert.equal(insideCode(fakeDoc(list), list.indexOf("{{icon")), false);
+});
+
+check("Zwei Bloecke hintereinander werden getrennt", () => {
+  const doc = "```\n{{icon:a}}\n```\n{{icon:b}}\n```\n{{icon:c}}\n```\n";
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:a}}")), true);
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:b}}")), false);
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:c}}")), true);
+});
+
+check("Inline-Code im Editor bleibt Text", () => {
+  const single = "`{{icon:server}}`\n";
+  assert.equal(insideCode(fakeDoc(single), single.indexOf("{{icon")), true);
+
+  const triple = "```{{icon:server}}```\n";
+  assert.equal(insideCode(fakeDoc(triple), triple.indexOf("{{icon")), true);
+});
+
+check("Alles ausser Code wird ersetzt", () => {
+  const doc =
+    "## Überschrift\n\n> Zitat\n\n- Liste\n\n| a | b |\n|---|---|\n{{icon:x}}\n";
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:x}}")), false);
+});
+
+check("Inline-Abschnitt mit drei Backticks verschiebt die Zaehlung nicht", () => {
+  // Fall aus test123.md: eine Zeile aus drei Backticks und dem Shortcode
+  // darf fuer die Zeilen darunter nicht als Blockmarke gelten.
+  const doc = [
+    "```",
+    "{{icon:a}}",
+    "```",
+    "`{{icon:b}}`",
+    "``{{icon:c}}``",
+    "{{icon:d}}",
+    "```{{icon:e}}```",
+    "- {{icon:f}}",
+  ].join("\n");
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:a}}")), true);
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:b}}")), true);
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:c}}")), true);
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:d}}")), false);
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:e}}")), true);
+  // Die Aufzaehlung ist Text, da stehen genau zwei echte Marken ueber ihr
+  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:f}}")), false);
+});
 
 console.log(`# ${count} Tests bestanden (final)`);
