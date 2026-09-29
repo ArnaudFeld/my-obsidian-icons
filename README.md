@@ -18,10 +18,11 @@ Custom SVGs, Devicon, Simple Icons and Lucide in notes and in the file explorer.
 {{icon:name|red}}
 {{icon:name|24|blue}}
 {{icon:name|dark:simple/docker}}
-{{icon:emoji:📁}}
 ```
 
-The default folder is `_assets/icons` and can be changed in the settings. Without a size, 1em applies; a plain number counts as pixels. Second to fourth part in any order: size, color as a theme name or CSS color, or a dark variant with `dark:`. `lucide:` uses the built-in Obsidian icons, no file needed. `emoji:` shows an emoji character, also without a file. While typing `{{icon:` the plugin suggests names with a preview, and Devicon search also understands tags like database.
+The default folder is `_assets/icons` and can be changed in the settings. Without a size, 1em applies; a plain number counts as pixels. Second to fourth part in any order: size, color as a theme name or CSS color, or a dark variant with `dark:`. `lucide:` uses the built-in Obsidian icons, no file needed. While typing `{{icon:` the plugin suggests names with a preview, and Devicon search also understands tags like database.
+
+Emoji are only available in the explorer mapping, as `emoji:📁`. The shortcode form does not work, because the icon name may only contain letters, digits, `-`, `_`, `/`, `:` and `.`.
 
 If a file is missing, the plugin shows `[name]` with a tooltip and writes a warning to the console.
 

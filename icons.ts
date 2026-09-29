@@ -340,6 +340,7 @@ export class IconStore {
   private cache = new Map<string, string>();
   private lucideCache: string[] | null = null;
   private lucideSet: Set<string> | null = null;
+  private inflight = new Map<string, Promise<string | null>>();
 
   constructor(
     private app: App,
@@ -358,6 +359,18 @@ export class IconStore {
     const path = this.filePath(name);
     const hit = this.cache.get(path);
     if (hit !== undefined) return hit;
+    // Laufender Zugriff wird mitbenutzt, sonst liest der Explorer dieselbe
+    // Datei sechsmal parallel aus dem Vault.
+    const pending = this.inflight.get(path);
+    if (pending) return pending;
+    const run = this.readOnce(path, name).finally(() => {
+      this.inflight.delete(path);
+    });
+    this.inflight.set(path, run);
+    return run;
+  }
+
+  private async readOnce(path: string, name: string): Promise<string | null> {
     try {
       const file = this.app.vault.getAbstractFileByPath(path);
       if (file instanceof TFile) {
@@ -426,6 +439,7 @@ export class IconStore {
 
   clear(): void {
     this.cache.clear();
+    this.inflight.clear();
   }
 }
 

@@ -18,8 +18,10 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import type { Extension } from "@codemirror/state";
+import type { EditorState, Extension } from "@codemirror/state";
 import { StateEffect } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
+import type { SyntaxNode } from "@lezer/common";
 import {
   IconRef,
   IconStore,
@@ -31,6 +33,7 @@ import {
   themeVar,
 } from "./icons";
 import { MappingStore, normalizeExt } from "./mapping";
+import { MoiSettings, DEFAULT_SETTINGS, readSettings } from "./settings";
 import { ExplorerIcons } from "./explorer";
 import { IconPickerModal, PickerMeta, PickerResult } from "./picker";
 import { IconGalleryModal, IconCheckModal } from "./gallery";
@@ -42,16 +45,6 @@ import { slogan, t } from "./i18n";
 import { CdnCache, DEVICON_NAMES, SIMPLE_CDN_SLUGS, fetchSimpleSlugs, loadCatalogs, catalogStand, clearCatalogCaches, selfhostLightRefs } from "./cdn";
 import { SELFHOST_DATE } from "./selfhost-catalog";
 
-interface MoiSettings {
-  iconFolder: string;
-  mappingFile: string;
-  cdnEnabled: boolean;
-  selfhostEnabled: boolean;
-  autoLightVariant: boolean;
-  showTabIcons: boolean;
-  showTitleIcons: boolean;
-}
-
 interface PluginEnvelope {
   settings?: MoiSettings;
   cdnCache?: Record<string, string>;
@@ -62,16 +55,6 @@ interface PluginEnvelope {
 const RECENT_LIMIT = 10;
 const FAVORITE_LIMIT = 200;
 const CONFLICT_IDS = ["iconic", "obsidian-iconize", "obsidian-icon-folder"];
-
-const DEFAULT_SETTINGS: MoiSettings = {
-  iconFolder: "_assets/icons",
-  mappingFile: "_assets/icon-mapping.json",
-  cdnEnabled: false,
-  selfhostEnabled: false,
-  autoLightVariant: true,
-  showTabIcons: true,
-  showTitleIcons: true,
-};
 
 // {{icon:name}}, {{icon:devicon/proxmox}}, {{icon:lucide:folder}},
 // {{icon:name|24}}, {{icon:name|1.5em}}, {{icon:name|red}},
@@ -180,6 +163,34 @@ class IconWidget extends WidgetType {
 /** Theme Wechsel als Effekt, damit Live Preview Icons neu bauen. */
 const iconThemeEffect = StateEffect.define<number>();
 
+/**
+ * Namen, mit denen der Markdown Parser Code ausweist. Fenced, Inline und die
+ * Backticks selbst. Der Namens Test greift auch bei Versionen, die es anders
+ * benennen, deshalb bewusst unscharf.
+ */
+export function isCodeNodeName(name: string): boolean {
+  return /code/i.test(name);
+}
+
+/**
+ * Liegt die Position im Quelltext, dann bleibt der Text stehen. Ohne diese
+ * Prüfung würde ein Beispiel für {{icon:…}} im Codeblock als Icon erscheinen,
+ * im Lesemodus und beim Tippen gleichermaßen.
+ */
+export function insideCodeAt(state: EditorState, pos: number): boolean {
+  const node = syntaxTree(state).resolveInner(pos);
+  for (let cur: SyntaxNode | null = node; cur; cur = cur.parent) {
+    if (isCodeNodeName(cur.name)) return true;
+  }
+  return false;
+}
+
+/** Im gerenderten HTML: Text unter pre oder code gehört dem Nutzer. */
+export function insideRenderedCode(node: Node): boolean {
+  const parent = node.parentElement;
+  return parent ? parent.closest("pre, code") !== null : false;
+}
+
 function buildIconExtension(
   store: IconStore,
   getAutoLight: () => boolean,
@@ -187,6 +198,7 @@ function buildIconExtension(
   const matcher = new MatchDecorator({
     regexp: new RegExp(ICON_TAG_RE.source, "g"),
     decoration: (match, view, pos) => {
+      if (insideCodeAt(view.state, pos)) return null;
       const ref = parseIconRef(match[1] ?? "");
       if (!ref || ref.kind === "emoji") return null;
       const end = pos + match[0].length;
@@ -969,7 +981,11 @@ export default class MoiPlugin extends Plugin {
     const nodes: Text[] = [];
     while (walker.nextNode()) {
       const current = walker.currentNode as Text;
-      if (current.nodeValue && current.nodeValue.includes("{{icon:")) {
+      if (
+        current.nodeValue &&
+        current.nodeValue.includes("{{icon:") &&
+        !insideRenderedCode(current)
+      ) {
         nodes.push(current);
       }
     }
@@ -1035,15 +1051,12 @@ export default class MoiPlugin extends Plugin {
       console.warn("[moi] data.json ungültig, Standard geladen");
     }
     if (this.isEnvelope(raw)) {
-      this.settings = { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) };
+      this.settings = readSettings(raw.settings);
       this.cdnData = raw.cdnCache ?? {};
       this.recentIcons = this.asStringList(raw.recentIcons).slice(0, RECENT_LIMIT);
       this.favoriteIcons = [...new Set(this.asStringList(raw.favoriteIcons))].slice(-FAVORITE_LIMIT);
     } else {
-      this.settings = {
-        ...DEFAULT_SETTINGS,
-        ...((raw as Partial<MoiSettings>) ?? {}),
-      };
+      this.settings = readSettings(raw);
       this.cdnData = {};
       this.recentIcons = [];
       this.favoriteIcons = [];

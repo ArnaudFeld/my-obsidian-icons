@@ -18,9 +18,17 @@ import {
 } from "../i18n";
 import { badgeKey, isBadgeMutation } from "../explorer";
 import { unusedSvgNames } from "../gallery";
-import { setStubLanguage } from "./obsidian-stub";
+import { setStubLanguage, setStubFetch, resetStubFetch, stubFetchCalls } from "./obsidian-stub";
 import { pickVariant } from "../tabs-titles";
-import { CdnCache, MISSING_TTL_MS } from "../cdn";
+import {
+  CdnCache,
+  MISSING_TTL_MS,
+  catalogStand,
+  clearCatalogCaches,
+  loadCatalogs,
+  selfhostLightRefs,
+} from "../cdn";
+import { DEFAULT_SETTINGS, readSettings } from "../settings";
 import { cachedCatalogRefs } from "../suggest";
 import { IconStore } from "../icons";
 import { App } from "./obsidian-stub";
@@ -679,5 +687,172 @@ check("Galerie findet ungenutzte Dateien", () => {
   assert.deepEqual(unusedSvgNames(["server", "router", "db"], entries), ["db"]);
   assert.deepEqual(unusedSvgNames([], entries), []);
 });
+
+check("Einstellungen übernehmen gültige Werte", () => {
+  const out = readSettings({
+    iconFolder: "icons",
+    mappingFile: "map.json",
+    cdnEnabled: true,
+    selfhostEnabled: true,
+    autoLightVariant: false,
+    showTabIcons: false,
+    showTitleIcons: false,
+  });
+  assert.deepEqual(out, {
+    iconFolder: "icons",
+    mappingFile: "map.json",
+    cdnEnabled: true,
+    selfhostEnabled: true,
+    autoLightVariant: false,
+    showTabIcons: false,
+    showTitleIcons: false,
+  });
+});
+
+check("Einstellungen fallen bei falschem Typ auf den Standard", () => {
+  // Number im Pfadfeld würde die Icon Suche mit TypeError abbrechen.
+  const out = readSettings({ iconFolder: 42, mappingFile: ["a"], cdnEnabled: "true" });
+  assert.equal(out.iconFolder, DEFAULT_SETTINGS.iconFolder);
+  assert.equal(out.mappingFile, DEFAULT_SETTINGS.mappingFile);
+  assert.equal(out.cdnEnabled, DEFAULT_SETTINGS.cdnEnabled);
+  assert.equal(out.showTitleIcons, DEFAULT_SETTINGS.showTitleIcons);
+});
+
+check("Einstellungen verwerfen leere und fremde Werte", () => {
+  assert.deepEqual(readSettings(null), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings(undefined), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings("kaputt"), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings([1, 2]), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings({ iconFolder: "   " }), DEFAULT_SETTINGS);
+  // Unbekanntes Feld darf nichts in den Store schreiben.
+  assert.deepEqual(readSettings({ cdnCache: { "devicon/x": "<svg/>" } }), DEFAULT_SETTINGS);
+});
+
+check("Einstellungen nehmen false und leere Booleans ernst", () => {
+  const out = readSettings({ cdnEnabled: false, showTabs: false, showTabIcons: false });
+  assert.equal(out.cdnEnabled, false);
+  assert.equal(out.showTabIcons, false);
+  assert.equal(out.showTitleIcons, DEFAULT_SETTINGS.showTitleIcons);
+});
+
+await checkAsync("Parallele CDN Abrufe teilen sich eine Anfrage", async () => {
+  setStubFetch(async (url) =>
+    url.endsWith("-plain.svg")
+      ? { status: 200, text: '<svg><path fill="red"/></svg>' }
+      : { status: 404, text: "" },
+  );
+  try {
+    const cache = new CdnCache({ load: () => ({}), save: () => {} });
+    const [a, b, c] = await Promise.all([
+      cache.getSvg("devicon/proxmox"),
+      cache.getSvg("devicon/proxmox"),
+      cache.getSvg("devicon/proxmox"),
+    ]);
+    assert.ok(a && a.includes("<svg"));
+    assert.equal(a, b);
+    assert.equal(b, c);
+    // Drei parallele Zeilen, ein Request
+    assert.equal(stubFetchCalls().count, 1);
+    // Danach aus dem Speicher, weiterhin kein Request
+    await cache.getSvg("devicon/proxmox");
+    assert.equal(stubFetchCalls().count, 1);
+  } finally {
+    resetStubFetch();
+  }
+});
+
+await checkAsync("Parallele Fehlschläge teilen sich eine Anfrage", async () => {
+  setStubFetch(async () => ({ status: 404, text: "" }));
+  try {
+    const cache = new CdnCache({ load: () => ({}), save: () => {} });
+    const results = await Promise.all([
+      cache.getSvg("simple/gibtsnicht"),
+      cache.getSvg("simple/gibtsnicht"),
+      cache.getSvg("simple/gibtsnicht"),
+    ]);
+    assert.deepEqual(results, [null, null, null]);
+    // simple hat nur eine URL, also ein Request trotz dreier Aufrufer
+    assert.equal(stubFetchCalls().count, 1);
+    const missing = (cache as unknown as { missing: Map<string, number> }).missing;
+    assert.equal(missing.get("simple/gibtsnicht") !== undefined, true);
+    // Devicon fragt plain, original und line ab: drei URLs, aber je Variante
+    // nur einmal, nicht einmal je Aufrufer
+    await Promise.all([
+      cache.getSvg("devicon/fehlt"),
+      cache.getSvg("devicon/fehlt"),
+    ]);
+    assert.equal(stubFetchCalls().count, 4);
+  } finally {
+    resetStubFetch();
+  }
+});
+
+await checkAsync("Parallele Vault Lesevorgänge teilen sich einen Zugriff", async () => {
+  setStubFetch(async () => ({ status: 404, text: "" }));
+  try {
+    const app = new App();
+    app.vault.files.set("icons/server.svg", '<svg><path fill="red"/></svg>');
+    let reads = 0;
+    const realRead = app.vault.read.bind(app.vault);
+    app.vault.read = async (file) => {
+      reads++;
+      return realRead(file);
+    };
+    const store = new IconStore(app, () => "icons");
+    const [a, b, d] = await Promise.all([
+      store.getSvg("server"),
+      store.getSvg("server"),
+      store.getSvg("server"),
+    ]);
+    assert.ok(a && a.includes("<svg"));
+    assert.equal(a, b);
+    assert.equal(b, d);
+    assert.equal(reads, 1);
+    await store.getSvg("server");
+    assert.equal(reads, 1);
+  } finally {
+    resetStubFetch();
+  }
+});
+
+/** Live Index mit einem Light Eintrag, den der eingebaut nicht kennt. */
+function fakeSelfhostIndex(): unknown[] {
+  const out: unknown[] = [];
+  for (let i = 0; i < 120; i++) {
+    out.push({ Reference: `live-${i}`, SVG: "Yes", Light: "No", Tags: "Test" });
+  }
+  out.push({ Reference: "testliveicon", SVG: "Yes", Light: "Yes", Tags: "Test" });
+  return out;
+}
+
+await checkAsync(
+  "Katalogstand und Light Liste fallen gemeinsam auf den eingebauten Stand",
+  async () => {
+    clearCatalogCaches();
+    setStubFetch(async (url) => {
+      if (url.includes("/selfhst/icons") && url.endsWith("index.json")) {
+        return { status: 200, text: JSON.stringify(fakeSelfhostIndex()) };
+      }
+      return { status: 404, text: "" };
+    });
+    try {
+      await loadCatalogs();
+      assert.notEqual(catalogStand().selfhosted, null);
+      assert.equal(selfhostLightRefs().has("testliveicon"), true);
+
+      // Zweiter Lauf ohne Netz: der Live Stand darf nicht hängen bleiben
+      clearCatalogCaches();
+      setStubFetch(async () => ({ status: 404, text: "" }));
+      await loadCatalogs();
+      assert.equal(catalogStand().selfhosted, null);
+      assert.equal(selfhostLightRefs().has("testliveicon"), false);
+      // Der eingebaute Katalog liefert weiter seine Light Varianten
+      assert.equal(selfhostLightRefs().size > 0, true);
+    } finally {
+      resetStubFetch();
+      clearCatalogCaches();
+    }
+  },
+);
 
 console.log(`# ${count} Tests bestanden (final)`);

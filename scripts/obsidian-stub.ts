@@ -88,8 +88,47 @@ export function setStubLanguage(lang: string): void {
   stubLanguage = lang;
 }
 
-export async function requestUrl(): Promise<never> {
+export async function requestUrl(args: {
+  url: string;
+}): Promise<{ status: number; text: string }> {
+  stubFetchUrls.push(args.url);
+  return stubFetch(args.url);
+}
+
+type StubFetch = (url: string) => Promise<{ status: number; text: string }>;
+
+const offlineFetch: StubFetch = async () => {
   throw new Error("obsidian-stub: kein Netz in Tests");
+};
+
+let stubFetch: StubFetch = offlineFetch;
+let stubFetchUrls: string[] = [];
+
+/** Nur für Tests: Netzverhalten vorgeben, Zähler und Liste zurücksetzen. */
+export function setStubFetch(fn: StubFetch): void {
+  stubFetch = fn;
+  stubFetchUrls = [];
+}
+
+/** Nur für Tests: zurückgesetztes Netz, etwa für den nächsten Test. */
+export function resetStubFetch(): void {
+  stubFetch = offlineFetch;
+  stubFetchUrls = [];
+}
+
+/** Nur für Tests: wie viele requestUrl Aufrufe seit dem Zurücksetzen. */
+export function stubFetchCalls(): { count: number; urls: string[] } {
+  return { count: stubFetchUrls.length, urls: [...stubFetchUrls] };
+}
+
+// Der CDN Cache nutzt window.setTimeout für das Speichern, in Node gibt es
+// kein window. Nur ergänzen, wenn die Laufzeit keins mitbringt.
+const globalAny = globalThis as unknown as { window?: unknown };
+if (typeof globalAny.window === "undefined") {
+  globalAny.window = {
+    setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms),
+    clearTimeout: (handle: unknown) => clearTimeout(handle as never),
+  };
 }
 
 export class Notice {

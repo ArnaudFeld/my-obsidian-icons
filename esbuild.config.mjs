@@ -29,6 +29,9 @@ const context = await esbuild.context({
   format: "cjs",
   target: "es2018",
   logLevel: "info",
+  // Nur der Production Build wird minifiziert, der Watch Build behält lesbaren
+  // Code und Inline Sourcemap zum Nachsehen.
+  minify: prod,
   sourcemap: prod ? false : "inline",
   treeShaking: true,
   outfile: "main.js",

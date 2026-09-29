@@ -18,10 +18,11 @@ Eigene SVGs, Devicon, Simple Icons und Lucide in Notizen und im Datei Explorer. 
 {{icon:name|red}}
 {{icon:name|24|blue}}
 {{icon:name|dark:simple/docker}}
-{{icon:emoji:📁}}
 ```
 
-Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. Zweiter bis vierter Teil in beliebiger Reihenfolge: Größe, Farbe als Theme Name oder CSS Farbe, oder dunkle Variante mit `dark:`. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. `emoji:` zeigt ein Emoji Zeichen, ebenfalls ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie database.
+Der Standardordner ist `_assets/icons` und lässt sich in den Einstellungen ändern. Ohne Größenangabe gilt 1em, eine Zahl ohne Einheit gilt als Pixel. Zweiter bis vierter Teil in beliebiger Reihenfolge: Größe, Farbe als Theme Name oder CSS Farbe, oder dunkle Variante mit `dark:`. `lucide:` nutzt die eingebauten Obsidian Icons, ganz ohne Datei. Beim Tippen von `{{icon:` schlägt das Plugin Namen mit Vorschau vor, Devicon Suche versteht zusätzlich Tags wie database.
+
+Emoji gibt es nur im Explorer Mapping, als `emoji:📁`. Die Shortcode Form funktioniert nicht, weil der Icon Name nur Buchstaben, Ziffern, `-`, `_`, `/`, `:` und `.` enthalten darf.
 
 Fehlt eine Datei, zeigt das Plugin `[name]` mit Tooltip und schreibt eine Warnung in die Konsole.
 

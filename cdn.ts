@@ -122,6 +122,14 @@ let catalogPromise: Promise<LiveCatalogs> | null = null;
 export function loadCatalogs(): Promise<LiveCatalogs> {
   if (!catalogPromise) {
     catalogPromise = (async () => {
+      // Vor jedem Lauf zurücksetzen. Sonst bleibt der Stand eines früheren
+      // Live Ladens stehen, während der Katalog auf den eingebauten
+      // zurückfällt: die Anzeige nennt ein Datum, das nicht mehr gilt, und
+      // selfhostLightRefs() führt Light Varianten, die es live nicht mehr gibt.
+      for (const source of Object.keys(standDates) as CatalogSource[]) {
+        standDates[source] = null;
+      }
+      liveSelfhost = null;
       const [devicon, simple, selfhost] = await Promise.all([
         loadDeviconCatalog(),
         loadSimpleCatalog(),
@@ -315,6 +323,8 @@ export function splitCdnRef(
 export class CdnCache {
   private cache = new Map<string, string>();
   private missing = new Map<string, number>();
+  /** Laufende Abrufe, damit sechs Zeilen mit demselben Icon einen holen. */
+  private inflight = new Map<string, Promise<string | null>>();
   private bytes = 0;
   private saveTimer = 0;
   private dirty = false;
@@ -358,6 +368,7 @@ export class CdnCache {
   clear(): void {
     this.cache.clear();
     this.missing.clear();
+    this.inflight.clear();
     this.bytes = 0;
     this.dirty = false;
     this.persist.save({});
@@ -366,6 +377,16 @@ export class CdnCache {
   async getSvg(name: string): Promise<string | null> {
     const hit = this.cache.get(name);
     if (hit !== undefined) return hit;
+    const pending = this.inflight.get(name);
+    if (pending) return pending;
+    const run = this.fetchOnce(name).finally(() => {
+      this.inflight.delete(name);
+    });
+    this.inflight.set(name, run);
+    return run;
+  }
+
+  private async fetchOnce(name: string): Promise<string | null> {
     const missedAt = this.missing.get(name);
     if (missedAt !== undefined) {
       if (Date.now() - missedAt < MISSING_TTL_MS) return null;

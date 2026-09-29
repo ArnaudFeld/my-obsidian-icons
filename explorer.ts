@@ -43,6 +43,7 @@ export function isBadgeMutation(records: MutationRecord[]): boolean {
 export class ExplorerIcons {
   private watchers = new Map<HTMLElement, MutationObserver>();
   private timer = 0;
+  private refreshing = false;
 
   constructor(
     private app: App,
@@ -76,6 +77,22 @@ export class ExplorerIcons {
   }
 
   async refresh(): Promise<void> {
+    // Läuft noch ein Durchgang, nachher neu anstoßen. Sonst überschreiben
+    // sich zwei Läufe im selben Badge und der alte Inhalt bleibt mit neuem
+    // dataset.ref stehen.
+    if (this.refreshing) {
+      this.refreshSoon();
+      return;
+    }
+    this.refreshing = true;
+    try {
+      await this.runRefresh();
+    } finally {
+      this.refreshing = false;
+    }
+  }
+
+  private async runRefresh(): Promise<void> {
     // Getrennte Container abbauen, sonst Leak bei Leaf Wechsel.
     for (const [container, observer] of this.watchers) {
       if (!container.isConnected) {

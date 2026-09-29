@@ -186,8 +186,19 @@ export class TabsTitles {
       el.textContent = ref.char;
     } else if (ref.kind === "lucide") {
       setIcon(el, ref.id);
+      // Gleiche Größenlogik wie im svg Zweig, sonst greift size nur dort.
+      if (entry.size) {
+        const lucideEl = el.querySelector("svg");
+        if (lucideEl) {
+          lucideEl.setAttribute("width", entry.size);
+          lucideEl.setAttribute("height", entry.size);
+        }
+      }
     } else {
-      await renderIconInto(el, ref, this.store, { color: entry.color });
+      await renderIconInto(el, ref, this.store, {
+        color: entry.color,
+        size: entry.size,
+      });
     }
     el.dataset.obsidianIcon = "1";
   }
@@ -210,7 +221,10 @@ export class TabsTitles {
     if (!ref) return;
     const badge = document.createElement("span");
     badge.addClass("obsidian-icon-title");
-    await renderIconInto(badge, ref, this.store, { color: entry.color });
+    await renderIconInto(badge, ref, this.store, {
+      color: entry.color,
+      size: entry.size,
+    });
     titleEl.insertBefore(badge, titleEl.firstChild);
   }
 }
