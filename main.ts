@@ -36,12 +36,26 @@ import { insideCode } from "./code-context";
 import { ExplorerIcons } from "./explorer";
 import { IconPickerModal, PickerMeta, PickerResult } from "./picker";
 import { IconGalleryModal, IconCheckModal } from "./gallery";
-import { IconSuggest, FrontmatterSuggest, collectCatalogRefs, clearCatalogCache } from "./suggest";
+import {
+  IconSuggest,
+  FrontmatterSuggest,
+  collectCatalogRefs,
+  clearCatalogCache,
+} from "./suggest";
 import { TabsTitles } from "./tabs-titles";
 import { exportIcons, importIcons } from "./exchange";
 import { slogan, t } from "./i18n";
 
-import { CdnCache, DEVICON_NAMES, SIMPLE_CDN_SLUGS, fetchSimpleSlugs, loadCatalogs, catalogStand, clearCatalogCaches, selfhostLightRefs } from "./cdn";
+import {
+  CdnCache,
+  DEVICON_NAMES,
+  SIMPLE_CDN_SLUGS,
+  fetchSimpleSlugs,
+  loadCatalogs,
+  catalogStand,
+  clearCatalogCaches,
+  selfhostLightRefs,
+} from "./cdn";
 import { SELFHOST_DATE } from "./selfhost-catalog";
 
 interface PluginEnvelope {
@@ -101,11 +115,7 @@ function resolveDarkRef(
 ): IconRef {
   if (!isDarkTheme()) return ref;
   if (dark) return dark;
-  if (
-    autoLight &&
-    ref.kind === "svg" &&
-    ref.name.startsWith("selfhosted/")
-  ) {
+  if (autoLight && ref.kind === "svg" && ref.name.startsWith("selfhosted/")) {
     const key = ref.name.slice("selfhosted/".length);
     if (selfhostLightRefs().has(key)) {
       return { kind: "svg", name: `${ref.name}-light` };
@@ -128,10 +138,28 @@ class IconWidget extends WidgetType {
   }
 
   eq(other: IconWidget): boolean {
-    const a = this.ref as { kind: string; name?: string; id?: string; char?: string };
-    const b = other.ref as { kind: string; name?: string; id?: string; char?: string };
-    const da = this.dark as unknown as { kind?: string; name?: string; id?: string } | null;
-    const db = other.dark as unknown as { kind?: string; name?: string; id?: string } | null;
+    const a = this.ref as {
+      kind: string;
+      name?: string;
+      id?: string;
+      char?: string;
+    };
+    const b = other.ref as {
+      kind: string;
+      name?: string;
+      id?: string;
+      char?: string;
+    };
+    const da = this.dark as unknown as {
+      kind?: string;
+      name?: string;
+      id?: string;
+    } | null;
+    const db = other.dark as unknown as {
+      kind?: string;
+      name?: string;
+      id?: string;
+    } | null;
     return (
       a.kind === b.kind &&
       a.name === b.name &&
@@ -182,7 +210,11 @@ function buildIconExtension(
       for (const range of view.state.selection.ranges) {
         if (range.from <= end && range.to >= pos) return null;
       }
-      const { size, color, darkIcon } = parseTagParams(match[2], match[3], match[4]);
+      const { size, color, darkIcon } = parseTagParams(
+        match[2],
+        match[3],
+        match[4],
+      );
       const dark = darkIcon ? parseIconRef(darkIcon) : null;
       const useRef = resolveDarkRef(ref, dark, getAutoLight());
       return Decoration.replace({
@@ -288,7 +320,9 @@ export default class MoiPlugin extends Plugin {
       }),
     );
     this.registerEvent(
-      this.app.workspace.on("active-leaf-change", () => this.chrome.refreshSoon()),
+      this.app.workspace.on("active-leaf-change", () =>
+        this.chrome.refreshSoon(),
+      ),
     );
     this.registerEvent(
       this.app.workspace.on("file-open", () => this.chrome.refreshSoon()),
@@ -484,9 +518,8 @@ export default class MoiPlugin extends Plugin {
   /** Live Preview Deko in allen Editoren neu bauen, etwa nach Theme Wechsel. */
   private refreshEditorIcons(): void {
     for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const editor = (
-        leaf.view as unknown as { editor?: { cm?: EditorView } }
-      ).editor?.cm;
+      const editor = (leaf.view as unknown as { editor?: { cm?: EditorView } })
+        .editor?.cm;
       if (!editor) continue;
       try {
         editor.dispatch({ effects: iconThemeEffect.of(Date.now()) });
@@ -539,7 +572,11 @@ export default class MoiPlugin extends Plugin {
     if (path.toLowerCase().endsWith(".svg")) clearCatalogCache();
   }
 
-  openExtPicker(ext: string, initial: PickerResult | null, onSaved?: () => void): void {
+  openExtPicker(
+    ext: string,
+    initial: PickerResult | null,
+    onSaved?: () => void,
+  ): void {
     this.openIconPicker(initial, (result) => {
       void (async () => {
         try {
@@ -698,7 +735,10 @@ export default class MoiPlugin extends Plugin {
     }
   }
 
-  private async applyIcons(paths: string[], result: PickerResult): Promise<void> {
+  private async applyIcons(
+    paths: string[],
+    result: PickerResult,
+  ): Promise<void> {
     const entry = {
       icon: result.icon,
       ...(result.color ? { color: result.color } : {}),
@@ -706,7 +746,9 @@ export default class MoiPlugin extends Plugin {
       ...(result.iconDark ? { iconDark: result.iconDark } : {}),
     };
     try {
-      await this.mapping.setMany(paths.map((path) => [path, entry] as [string, typeof entry]));
+      await this.mapping.setMany(
+        paths.map((path) => [path, entry] as [string, typeof entry]),
+      );
     } catch {
       new Notice(t("notice.iconsSaveFailed"));
       return;
@@ -859,10 +901,16 @@ export default class MoiPlugin extends Plugin {
   }
 
   importPackage(): void {
-    importIcons(this.app, this.icons, this.mapping, () => this.settings.iconFolder, () => {
-      this.explorer.refreshSoon();
-      this.chrome.refreshSoon();
-    });
+    importIcons(
+      this.app,
+      this.icons,
+      this.mapping,
+      () => this.settings.iconFolder,
+      () => {
+        this.explorer.refreshSoon();
+        this.chrome.refreshSoon();
+      },
+    );
   }
 
   /**
@@ -914,10 +962,7 @@ export default class MoiPlugin extends Plugin {
       if (ref.kind === "emoji") return ref.char.length > 0;
       if (ref.kind === "lucide") return lucide.has(ref.id);
       if (resolvable.has(ref.name)) return true;
-      if (
-        ref.name.startsWith("selfhosted/") &&
-        ref.name.endsWith("-light")
-      ) {
+      if (ref.name.startsWith("selfhosted/") && ref.name.endsWith("-light")) {
         const base = ref.name.slice("selfhosted/".length, -"-light".length);
         if (
           selfhostLightRefs().has(base) &&
@@ -931,7 +976,12 @@ export default class MoiPlugin extends Plugin {
         !!this.cdn.peek(ref.name)
       );
     };
-    for (const [path, entry] of [...entries, ...this.mapping.extEntries().map(([ext, value]): [string, typeof value] => [`*.${ext}`, value])]) {
+    for (const [path, entry] of [
+      ...entries,
+      ...this.mapping
+        .extEntries()
+        .map(([ext, value]): [string, typeof value] => [`*.${ext}`, value]),
+    ]) {
       if (!refOk(parseIconRef(entry.icon))) broken.push([path, entry.icon]);
       if (entry.iconDark && !refOk(parseIconRef(entry.iconDark))) {
         broken.push([`${path} (dunkel)`, entry.iconDark]);
@@ -950,7 +1000,11 @@ export default class MoiPlugin extends Plugin {
     for (const name of local) {
       if (!used.has(name)) unused++;
     }
-    return { broken, used: entries.length + this.mapping.extEntries().length, unused };
+    return {
+      broken,
+      used: entries.length + this.mapping.extEntries().length,
+      unused,
+    };
   }
 
   clearCache(): void {
@@ -1037,8 +1091,13 @@ export default class MoiPlugin extends Plugin {
     if (this.isEnvelope(raw)) {
       this.settings = readSettings(raw.settings);
       this.cdnData = raw.cdnCache ?? {};
-      this.recentIcons = this.asStringList(raw.recentIcons).slice(0, RECENT_LIMIT);
-      this.favoriteIcons = [...new Set(this.asStringList(raw.favoriteIcons))].slice(-FAVORITE_LIMIT);
+      this.recentIcons = this.asStringList(raw.recentIcons).slice(
+        0,
+        RECENT_LIMIT,
+      );
+      this.favoriteIcons = [
+        ...new Set(this.asStringList(raw.favoriteIcons)),
+      ].slice(-FAVORITE_LIMIT);
     } else {
       this.settings = readSettings(raw);
       this.cdnData = {};
@@ -1138,7 +1197,9 @@ class MoiSettingTab extends PluginSettingTab {
       .setName(t("set.ext.name"))
       .setDesc(t("set.ext.desc"));
     for (const [ext, entry] of this.plugin.iconMapping().extEntries()) {
-      const row = new Setting(containerEl).setName(`*.${ext}`).setDesc(entry.icon);
+      const row = new Setting(containerEl)
+        .setName(`*.${ext}`)
+        .setDesc(entry.icon);
       const preview = document.createElement("span");
       preview.addClass("obsidian-icon-inline");
       preview.style.width = "18px";

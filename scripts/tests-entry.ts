@@ -18,7 +18,12 @@ import {
 } from "../i18n";
 import { badgeKey, isBadgeMutation } from "../explorer";
 import { unusedSvgNames } from "../gallery";
-import { setStubLanguage, setStubFetch, resetStubFetch, stubFetchCalls } from "./obsidian-stub";
+import {
+  setStubLanguage,
+  setStubFetch,
+  resetStubFetch,
+  stubFetchCalls,
+} from "./obsidian-stub";
 import type { App as ObsidianApp } from "obsidian";
 import { pickVariant } from "../tabs-titles";
 import {
@@ -48,7 +53,10 @@ function check(name: string, fn: () => void): void {
   console.log(`ok ${count} - ${name}`);
 }
 
-async function checkAsync(name: string, fn: () => Promise<void>): Promise<void> {
+async function checkAsync(
+  name: string,
+  fn: () => Promise<void>,
+): Promise<void> {
   await fn();
   count++;
   console.log(`ok ${count} - ${name}`);
@@ -123,10 +131,9 @@ check("Eintrag Langform wird geputzt", () => {
 });
 
 check("Eintrag wirft Ungültiges weg", () => {
-  assert.deepEqual(
-    normalizeEntry({ icon: "a", size: "rot", iconDark: ".." }),
-    { icon: "a" },
-  );
+  assert.deepEqual(normalizeEntry({ icon: "a", size: "rot", iconDark: ".." }), {
+    icon: "a",
+  });
 });
 
 check("Eintrag mit Zahl Werten stürzt nicht ab", () => {
@@ -207,7 +214,7 @@ check("Sanitizer entfernt Fremdkörper und Skript Adressen", () => {
 
 check("Sanitizer ohne Anführungszeichen und Rahmen", () => {
   const out = sanitizeSvg(
-    "<svg onload=alert(1)><img src=x onerror=alert(2)><iframe src=\"data:text/html,x\"></iframe></svg>",
+    '<svg onload=alert(1)><img src=x onerror=alert(2)><iframe src="data:text/html,x"></iframe></svg>',
   );
   assert.ok(!out.includes("onload"));
   assert.ok(!out.includes("onerror"));
@@ -216,7 +223,7 @@ check("Sanitizer ohne Anführungszeichen und Rahmen", () => {
 
 check("Sanitizer kodierte Adressen und Stil Import", () => {
   const out = sanitizeSvg(
-    '<svg><a xlink:href="&#106;avascript:alert(1)"><text>x</text></a><style>@import \'https://evil/x.css\';.a{fill:red}</style></svg>',
+    "<svg><a xlink:href=\"&#106;avascript:alert(1)\"><text>x</text></a><style>@import 'https://evil/x.css';.a{fill:red}</style></svg>",
   );
   assert.ok(!out.includes("xlink:href"));
   assert.ok(!out.includes("@import"));
@@ -407,7 +414,8 @@ await checkAsync("Entfernen findet jede Schreibweise", async () => {
   assert.equal(store.getExt("md"), null);
 });
 
-await checkAsync("CDN Fehlschlag versucht neu nach TTL", async () => {  const cache = new CdnCache({ load: () => ({}), save: () => {} });
+await checkAsync("CDN Fehlschlag versucht neu nach TTL", async () => {
+  const cache = new CdnCache({ load: () => ({}), save: () => {} });
   const realNow = Date.now;
   try {
     Date.now = () => 1_000_000;
@@ -469,10 +477,7 @@ await checkAsync("Proto Schlüssel landen nicht im Speicher", async () => {
   await store.setExt("__proto__", { icon: "x" });
   assert.deepEqual(store.entries(), []);
   assert.deepEqual(store.extEntries(), []);
-  assert.equal(
-    ({} as Record<string, unknown>)["icon" as string],
-    undefined,
-  );
+  assert.equal(({} as Record<string, unknown>)["icon" as string], undefined);
 });
 
 await checkAsync("Suggest Katalog kommt aus dem Cache", async () => {
@@ -485,7 +490,10 @@ await checkAsync("Suggest Katalog kommt aus dem Cache", async () => {
   const first = await cachedCatalogRefs(store, { cdn: false, selfhost: false });
   assert.ok(first.catalog.refs.includes("server"));
   assert.deepEqual(first.hay.get("server"), ["server"]);
-  const second = await cachedCatalogRefs(store, { cdn: false, selfhost: false });
+  const second = await cachedCatalogRefs(store, {
+    cdn: false,
+    selfhost: false,
+  });
   assert.equal(second, first);
 });
 
@@ -599,13 +607,10 @@ await checkAsync("Import sammelt nur gültige Einträge", async () => {
     "": "leer",
     "/abs.md": "abs",
     "kaputt.md": { icon: "../x" },
-    __ext__: { md: "server", "BÖSE": "x" },
+    __ext__: { md: "server", BÖSE: "x" },
   } as unknown as IconMapping;
   const res = collectImportEntries(pkg, 5000);
-  assert.deepEqual(
-    res.pathItems.map(([p]) => p).sort(),
-    ["a..b.md", "a.md"],
-  );
+  assert.deepEqual(res.pathItems.map(([p]) => p).sort(), ["a..b.md", "a.md"]);
   assert.deepEqual(res.extItems, [["md", { icon: "server" }]]);
   assert.equal(res.entries, 3);
   assert.equal(res.skipped, 5);
@@ -680,7 +685,7 @@ check("Explorer erkennt eigene Badge Mutationen", () => {
   };
   const other = { closest: () => null };
   const asRecord = (target: unknown): MutationRecord =>
-    ({ target } as unknown as MutationRecord);
+    ({ target }) as unknown as MutationRecord;
   assert.equal(isBadgeMutation([asRecord(badge)]), true);
   assert.equal(isBadgeMutation([asRecord(other)]), false);
   assert.equal(isBadgeMutation([asRecord(badge), asRecord(other)]), false);
@@ -718,7 +723,11 @@ check("Einstellungen übernehmen gültige Werte", () => {
 
 check("Einstellungen fallen bei falschem Typ auf den Standard", () => {
   // Number im Pfadfeld würde die Icon Suche mit TypeError abbrechen.
-  const out = readSettings({ iconFolder: 42, mappingFile: ["a"], cdnEnabled: "true" });
+  const out = readSettings({
+    iconFolder: 42,
+    mappingFile: ["a"],
+    cdnEnabled: "true",
+  });
   assert.equal(out.iconFolder, DEFAULT_SETTINGS.iconFolder);
   assert.equal(out.mappingFile, DEFAULT_SETTINGS.mappingFile);
   assert.equal(out.cdnEnabled, DEFAULT_SETTINGS.cdnEnabled);
@@ -732,11 +741,18 @@ check("Einstellungen verwerfen leere und fremde Werte", () => {
   assert.deepEqual(readSettings([1, 2]), DEFAULT_SETTINGS);
   assert.deepEqual(readSettings({ iconFolder: "   " }), DEFAULT_SETTINGS);
   // Unbekanntes Feld darf nichts in den Store schreiben.
-  assert.deepEqual(readSettings({ cdnCache: { "devicon/x": "<svg/>" } }), DEFAULT_SETTINGS);
+  assert.deepEqual(
+    readSettings({ cdnCache: { "devicon/x": "<svg/>" } }),
+    DEFAULT_SETTINGS,
+  );
 });
 
 check("Einstellungen nehmen false und leere Booleans ernst", () => {
-  const out = readSettings({ cdnEnabled: false, showTabs: false, showTabIcons: false });
+  const out = readSettings({
+    cdnEnabled: false,
+    showTabs: false,
+    showTabIcons: false,
+  });
   assert.equal(out.cdnEnabled, false);
   assert.equal(out.showTabIcons, false);
   assert.equal(out.showTitleIcons, DEFAULT_SETTINGS.showTitleIcons);
@@ -780,7 +796,8 @@ await checkAsync("Parallele Fehlschläge teilen sich eine Anfrage", async () => 
     assert.deepEqual(results, [null, null, null]);
     // simple hat nur eine URL, also ein Request trotz dreier Aufrufer
     assert.equal(stubFetchCalls().count, 1);
-    const missing = (cache as unknown as { missing: Map<string, number> }).missing;
+    const missing = (cache as unknown as { missing: Map<string, number> })
+      .missing;
     assert.equal(missing.get("simple/gibtsnicht") !== undefined, true);
     // Devicon fragt plain, original und line ab: drei URLs, aber je Variante
     // nur einmal, nicht einmal je Aufrufer
@@ -794,34 +811,37 @@ await checkAsync("Parallele Fehlschläge teilen sich eine Anfrage", async () => 
   }
 });
 
-await checkAsync("Parallele Vault Lesevorgänge teilen sich einen Zugriff", async () => {
-  setStubFetch(async () => ({ status: 404, text: "" }));
-  try {
-    const app = new App();
-    app.vault.files.set("icons/server.svg", '<svg><path fill="red"/></svg>');
-    let reads = 0;
-    const realRead = app.vault.read.bind(app.vault);
-    app.vault.read = async (file) => {
-      reads++;
-      return realRead(file);
-    };
-    // Der Stub ist bewusst nur ein Gerüst, der echte Typ kommt daher hierher.
-    const store = new IconStore(app as unknown as ObsidianApp, () => "icons");
-    const [a, b, d] = await Promise.all([
-      store.getSvg("server"),
-      store.getSvg("server"),
-      store.getSvg("server"),
-    ]);
-    assert.ok(a && a.includes("<svg"));
-    assert.equal(a, b);
-    assert.equal(b, d);
-    assert.equal(reads, 1);
-    await store.getSvg("server");
-    assert.equal(reads, 1);
-  } finally {
-    resetStubFetch();
-  }
-});
+await checkAsync(
+  "Parallele Vault Lesevorgänge teilen sich einen Zugriff",
+  async () => {
+    setStubFetch(async () => ({ status: 404, text: "" }));
+    try {
+      const app = new App();
+      app.vault.files.set("icons/server.svg", '<svg><path fill="red"/></svg>');
+      let reads = 0;
+      const realRead = app.vault.read.bind(app.vault);
+      app.vault.read = async (file) => {
+        reads++;
+        return realRead(file);
+      };
+      // Der Stub ist bewusst nur ein Gerüst, der echte Typ kommt daher hierher.
+      const store = new IconStore(app as unknown as ObsidianApp, () => "icons");
+      const [a, b, d] = await Promise.all([
+        store.getSvg("server"),
+        store.getSvg("server"),
+        store.getSvg("server"),
+      ]);
+      assert.ok(a && a.includes("<svg"));
+      assert.equal(a, b);
+      assert.equal(b, d);
+      assert.equal(reads, 1);
+      await store.getSvg("server");
+      assert.equal(reads, 1);
+    } finally {
+      resetStubFetch();
+    }
+  },
+);
 
 /** Live Index mit einem Light Eintrag, den der eingebaut nicht kennt. */
 function fakeSelfhostIndex(): unknown[] {
@@ -829,7 +849,12 @@ function fakeSelfhostIndex(): unknown[] {
   for (let i = 0; i < 120; i++) {
     out.push({ Reference: `live-${i}`, SVG: "Yes", Light: "No", Tags: "Test" });
   }
-  out.push({ Reference: "testliveicon", SVG: "Yes", Light: "Yes", Tags: "Test" });
+  out.push({
+    Reference: "testliveicon",
+    SVG: "Yes",
+    Light: "Yes",
+    Tags: "Test",
+  });
   return out;
 }
 
@@ -942,40 +967,61 @@ check("Alles ausser Code wird ersetzt", () => {
   assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:x}}")), false);
 });
 
-check("Inline-Abschnitt mit drei Backticks verschiebt die Zaehlung nicht", () => {
-  // Fall aus test123.md: eine Zeile aus drei Backticks und dem Shortcode
-  // darf fuer die Zeilen darunter nicht als Blockmarke gelten.
-  const doc = [
-    "```",
-    "{{icon:a}}",
-    "```",
-    "`{{icon:b}}`",
-    "``{{icon:c}}``",
-    "{{icon:d}}",
-    "```{{icon:e}}```",
-    "- {{icon:f}}",
-  ].join("\n");
-  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:a}}")), true);
-  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:b}}")), true);
-  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:c}}")), true);
-  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:d}}")), false);
-  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:e}}")), true);
-  // Die Aufzaehlung ist Text, da stehen genau zwei echte Marken ueber ihr
-  assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:f}}")), false);
-});
+check(
+  "Inline-Abschnitt mit drei Backticks verschiebt die Zaehlung nicht",
+  () => {
+    // Fall aus test123.md: eine Zeile aus drei Backticks und dem Shortcode
+    // darf fuer die Zeilen darunter nicht als Blockmarke gelten.
+    const doc = [
+      "```",
+      "{{icon:a}}",
+      "```",
+      "`{{icon:b}}`",
+      "``{{icon:c}}``",
+      "{{icon:d}}",
+      "```{{icon:e}}```",
+      "- {{icon:f}}",
+    ].join("\n");
+    assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:a}}")), true);
+    assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:b}}")), true);
+    assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:c}}")), true);
+    assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:d}}")), false);
+    assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:e}}")), true);
+    // Die Aufzaehlung ist Text, da stehen genau zwei echte Marken ueber ihr
+    assert.equal(insideCode(fakeDoc(doc), doc.indexOf("{{icon:f}}")), false);
+  },
+);
 
 check("Export nimmt den naechsten freien Namen", () => {
-  const taken = new Set(["icons-export-2026-09-29.json", "icons-export-2026-09-29-2.json"]);
-  assert.equal(freeExportName((p) => taken.has(p), "2026-09-29"), "icons-export-2026-09-29-3.json");
-  assert.equal(freeExportName((p) => taken.has(p), "2026-09-30"), "icons-export-2026-09-30.json");
+  const taken = new Set([
+    "icons-export-2026-09-29.json",
+    "icons-export-2026-09-29-2.json",
+  ]);
+  assert.equal(
+    freeExportName((p) => taken.has(p), "2026-09-29"),
+    "icons-export-2026-09-29-3.json",
+  );
+  assert.equal(
+    freeExportName((p) => taken.has(p), "2026-09-30"),
+    "icons-export-2026-09-30.json",
+  );
   const leer = new Set<string>();
-  assert.equal(freeExportName((p) => leer.has(p), "2026-09-29"), "icons-export-2026-09-29.json");
+  assert.equal(
+    freeExportName((p) => leer.has(p), "2026-09-29"),
+    "icons-export-2026-09-29.json",
+  );
 });
 
 check("Bereinigung ohne svg ergibt leeren String", () => {
-  assert.equal(sanitizeSvg("<svg><script>alert(1)</script></svg>"), "<svg></svg>");
+  assert.equal(
+    sanitizeSvg("<svg><script>alert(1)</script></svg>"),
+    "<svg></svg>",
+  );
   assert.equal(sanitizeSvg("<p>kein svg</p>"), "");
-  assert.equal(sanitizeSvg("<svg><foreignObject>x</foreignObject></svg>"), "<svg></svg>");
+  assert.equal(
+    sanitizeSvg("<svg><foreignObject>x</foreignObject></svg>"),
+    "<svg></svg>",
+  );
 });
 
 console.log(`# ${count} Tests bestanden (final)`);

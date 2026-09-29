@@ -118,7 +118,8 @@ export class MappingStore {
     for (const key of Object.keys(rec)) {
       const norm = normalizeExt(key);
       if (norm && norm !== key) {
-        if (!Object.prototype.hasOwnProperty.call(rec, norm)) rec[norm] = rec[key];
+        if (!Object.prototype.hasOwnProperty.call(rec, norm))
+          rec[norm] = rec[key];
         delete rec[key];
       }
     }
@@ -173,7 +174,8 @@ export class MappingStore {
     if (entry.iconDark) clean.iconDark = entry.iconDark;
     await this.enqueue(async () => {
       const section = this.extSection();
-      section[key] = clean.color || clean.size || clean.iconDark ? clean : clean.icon;
+      section[key] =
+        clean.color || clean.size || clean.iconDark ? clean : clean.icon;
       this.data[EXT_KEY] = section as unknown as MappingEntry;
       this.rev++;
       await this.writeFile();
@@ -243,9 +245,7 @@ export class MappingStore {
 
   /** Mehrere Pfade mit nur einem Schreibvorgang, ohne Wettlauf. */
   async setMany(items: [string, MappingEntry][]): Promise<void> {
-    const clean = items.filter(
-      ([path]) => isSafeKey(path) && path !== EXT_KEY,
-    );
+    const clean = items.filter(([path]) => isSafeKey(path) && path !== EXT_KEY);
     if (clean.length === 0) return;
     await this.enqueue(async () => {
       for (const [path, entry] of clean) {

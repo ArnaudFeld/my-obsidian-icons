@@ -210,11 +210,10 @@ export class IconSuggest extends EditorSuggest<SuggestItem> {
     if (line.slice(endCh, endCh + 2) === "}}") endCh += 2;
     const after = line.slice(endCh);
     const suffix = after.length > 0 && !/^\s/.test(after) ? " " : "";
-    editor.replaceRange(
-      `{{icon:${item.ref}}}${suffix}`,
-      from,
-      { line: cursor.line, ch: endCh },
-    );
+    editor.replaceRange(`{{icon:${item.ref}}}${suffix}`, from, {
+      line: cursor.line,
+      ch: endCh,
+    });
     this.opts.touch(item.ref);
   }
 }
@@ -256,7 +255,9 @@ export class FrontmatterSuggest extends EditorSuggest<SuggestItem> {
         query: `icon:${m[2] ?? ""}`,
       };
     }
-    m = /^(\s*icon(?:Color|Dark)\s*:\s*["']?)([A-Za-z0-9_:\-/#]*)$/.exec(before);
+    m = /^(\s*icon(?:Color|Dark)\s*:\s*["']?)([A-Za-z0-9_:\-/#]*)$/.exec(
+      before,
+    );
     if (!m) return null;
     return {
       start: { line: cursor.line, ch: cursor.ch - m[2].length },
@@ -274,11 +275,18 @@ export class FrontmatterSuggest extends EditorSuggest<SuggestItem> {
         .map((ref) => ({ ref }));
     }
     const matchDark = ctx.query.startsWith("dark:");
-    const q = (matchDark ? ctx.query.slice("dark:".length) : ctx.query.slice("icon:".length))
+    const q = (
+      matchDark
+        ? ctx.query.slice("dark:".length)
+        : ctx.query.slice("icon:".length)
+    )
       .trim()
       .toLowerCase();
     const terms = q.split(/\s+/).filter(Boolean);
-    const { catalog, hay } = await cachedCatalogRefs(this.store, this.sources());
+    const { catalog, hay } = await cachedCatalogRefs(
+      this.store,
+      this.sources(),
+    );
     return catalog.refs
       .filter((ref) => {
         const haystack = hay.get(ref) ?? [];

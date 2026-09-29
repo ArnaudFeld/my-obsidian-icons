@@ -60,7 +60,11 @@ export class TabsTitles {
     private app: App,
     private store: IconStore,
     private mapping: MappingStore,
-    private getOpts: () => { tabs: boolean; title: boolean; autoLight: boolean },
+    private getOpts: () => {
+      tabs: boolean;
+      title: boolean;
+      autoLight: boolean;
+    },
   ) {}
 
   start(): void {
@@ -70,9 +74,8 @@ export class TabsTitles {
   stop(): void {
     window.clearTimeout(this.timer);
     for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const tabEl = (
-        leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement }
-      ).tabHeaderInnerIconEl;
+      const tabEl = (leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement })
+        .tabHeaderInnerIconEl;
       if (tabEl) this.restoreTab(leaf, tabEl);
       const titleEl = leaf.view.containerEl.querySelector(
         ".inline-title",
@@ -117,29 +120,28 @@ export class TabsTitles {
     dark: boolean,
   ): Promise<void> {
     const path = this.leafPath(leaf);
-    const tabEl = (
-      leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement }
-    ).tabHeaderInnerIconEl;
-      if (tabEl) {
-        const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
-        if (!entry) this.restoreTab(leaf, tabEl);
-        else await this.paintTab(leaf, tabEl, entry);
+    const tabEl = (leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement })
+      .tabHeaderInnerIconEl;
+    if (tabEl) {
+      const entry = path && opts.tabs ? this.resolveForPath(path, dark) : null;
+      if (!entry) this.restoreTab(leaf, tabEl);
+      else await this.paintTab(leaf, tabEl, entry);
+    }
+    const titleEl = leaf.view.containerEl.querySelector(
+      ".inline-title",
+    ) as HTMLElement | null;
+    if (titleEl) {
+      const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
+      const key = entry
+        ? `${dark ? "dark" : "light"}|${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`
+        : "";
+      const badge = titleEl.querySelector(":scope > .obsidian-icon-title");
+      if (titleEl.dataset.obsidianIconTitle !== key || (entry && !badge)) {
+        titleEl.dataset.obsidianIconTitle = key;
+        badge?.remove();
+        if (entry) await this.paintTitle(titleEl, entry);
       }
-      const titleEl = leaf.view.containerEl.querySelector(
-        ".inline-title",
-      ) as HTMLElement | null;
-      if (titleEl) {
-        const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
-        const key = entry
-          ? `${dark ? "dark" : "light"}|${entry.icon}|${entry.color ?? ""}|${entry.size ?? ""}`
-          : "";
-        const badge = titleEl.querySelector(":scope > .obsidian-icon-title");
-        if (titleEl.dataset.obsidianIconTitle !== key || (entry && !badge)) {
-          titleEl.dataset.obsidianIconTitle = key;
-          badge?.remove();
-          if (entry) await this.paintTitle(titleEl, entry);
-        }
-      }
+    }
   }
 
   private leafPath(leaf: WorkspaceLeaf): string | null {
@@ -160,7 +162,8 @@ export class TabsTitles {
         this.app,
         file,
       );
-      if (frontmatter) return pickVariant(frontmatter, dark, hasSelfhostLight, auto);
+      if (frontmatter)
+        return pickVariant(frontmatter, dark, hasSelfhostLight, auto);
     }
     const mapped: MappingEntry | null = this.mapping.resolve(path);
     if (mapped) return pickVariant(mapped, dark, hasSelfhostLight, auto);

@@ -150,9 +150,7 @@ export class ExplorerIcons {
   private async renderRow(selfEl: HTMLElement, path: string): Promise<void> {
     const raw = this.resolveForPath(path);
     if (!raw) {
-      selfEl
-        .querySelector(":scope > .obsidian-icon-explorer")
-        ?.remove();
+      selfEl.querySelector(":scope > .obsidian-icon-explorer")?.remove();
       return;
     }
     const dark = isDarkTheme();
@@ -182,7 +180,10 @@ export class ExplorerIcons {
     badge.dataset.ref = key;
     badge.innerHTML = "";
     badge.removeAttribute("style");
-    await renderIconInto(badge, ref, this.store, { color: entry.color, size: entry.size });
+    await renderIconInto(badge, ref, this.store, {
+      color: entry.color,
+      size: entry.size,
+    });
     if (badge.hasClass("obsidian-icon-missing")) {
       delete badge.dataset.ref;
     }

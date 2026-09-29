@@ -177,9 +177,9 @@ async function loadDeviconCatalog(): Promise<{
       }
       names.push(entry.name);
       if (Array.isArray(entry.tags)) {
-        const clean = entry.tags.filter(
-          (t): t is string => typeof t === "string",
-        ).slice(0, 6);
+        const clean = entry.tags
+          .filter((t): t is string => typeof t === "string")
+          .slice(0, 6);
         if (clean.length > 0) tags[entry.name] = clean;
       }
     }
@@ -416,7 +416,8 @@ export class CdnCache {
     if (old !== undefined) {
       this.bytes -= old.length;
       this.cache.delete(name);
-    }    while (
+    }
+    while (
       (this.cache.size >= MAX_ENTRIES || this.bytes + svg.length > MAX_BYTES) &&
       this.cache.size > 0
     ) {

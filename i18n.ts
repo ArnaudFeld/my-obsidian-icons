@@ -78,7 +78,8 @@ const STRINGS: Record<string, Record<string, string>> = {
     "set.titles.desc":
       "Mapping und Frontmatter Icons vor dem Notiz Titel zeigen.",
     "set.export.name": "Paket exportieren",
-    "set.export.desc": "Mapping plus genutzte Icons als Datei für Zweit Vaults.",
+    "set.export.desc":
+      "Mapping plus genutzte Icons als Datei für Zweit Vaults.",
     "set.export.btn": "Exportieren",
     "set.import.name": "Paket importieren",
     "set.import.desc":
@@ -230,7 +231,8 @@ const STRINGS: Record<string, Record<string, string>> = {
     "pick.search.name": "Search",
     "pick.search.ph": "Type a name …",
     "pick.size.name": "Size (optional)",
-    "pick.size.desc": "Leave empty for default, a plain number counts as pixels.",
+    "pick.size.desc":
+      "Leave empty for default, a plain number counts as pixels.",
     "pick.size.ph": "1.4em or 20",
     "pick.color": "Color",
     "pick.colorOff": "Off",
@@ -245,7 +247,8 @@ const STRINGS: Record<string, Record<string, string>> = {
     "pick.darkTip":
       "Set an icon for dark mode: then click an icon in the list, it shows only in the dark theme.",
     "pick.darkCancel": "Cancel selection",
-    "pick.darkHint": "Now click an icon in the list → becomes the dark mode icon",
+    "pick.darkHint":
+      "Now click an icon in the list → becomes the dark mode icon",
     "pick.darkValue": "Dark mode: {value}",
     "pick.darkSame": "Dark mode: same as light icon",
     "pick.none": "Nothing found",
@@ -328,7 +331,8 @@ const STRINGS: Record<string, Record<string, string>> = {
     "cat.off": "CDN désactivé, fichiers et Lucide uniquement.",
 
     "set.iconFolder.name": "Dossier d'icônes",
-    "set.iconFolder.desc": "Chemin dans le coffre, sans barre oblique initiale.",
+    "set.iconFolder.desc":
+      "Chemin dans le coffre, sans barre oblique initiale.",
     "set.mappingFile.name": "Fichier de mappage",
     "set.mappingFile.desc":
       "Associe les chemins de l'explorateur aux icônes, en JSON dans le coffre.",
@@ -426,12 +430,14 @@ const STRINGS: Record<string, Record<string, string>> = {
     "gal.dark": "sombre : {value}",
 
     "check.title": "Vérifier les icônes",
-    "check.summary": "{used} attribuées, {unused} non utilisées, {broken} cassées",
+    "check.summary":
+      "{used} attribuées, {unused} non utilisées, {broken} cassées",
 
     "ex.done": "Exporté : {path}",
     "ex.tooBig": "Échec de l'import : fichier trop volumineux",
     "ex.invalid": "Échec de l'import : fichier non valide",
-    "ex.writeErr": "Import interrompu : erreur d'écriture, état partiel conservé",
+    "ex.writeErr":
+      "Import interrompu : erreur d'écriture, état partiel conservé",
     "ex.imported":
       "Importé : {entries} entrées, {files} fichiers ({skipped} ignorés)",
   },
@@ -504,8 +510,7 @@ const STRINGS: Record<string, Record<string, string>> = {
     "set.titles.desc":
       "Mostrar iconos de mapeo y frontmatter delante del título de la nota.",
     "set.export.name": "Exportar paquete",
-    "set.export.desc":
-      "Mapeo e iconos usados como archivo para otros baúles.",
+    "set.export.desc": "Mapeo e iconos usados como archivo para otros baúles.",
     "set.export.btn": "Exportar",
     "set.import.name": "Importar paquete",
     "set.import.desc":
@@ -570,7 +575,8 @@ const STRINGS: Record<string, Record<string, string>> = {
     "gal.dark": "oscuro: {value}",
 
     "check.title": "Comprobar iconos",
-    "check.summary": "{used} asignados, {unused} sin usar, {broken} defectuosos",
+    "check.summary":
+      "{used} asignados, {unused} sin usar, {broken} defectuosos",
 
     "ex.done": "Exportado: {path}",
     "ex.tooBig": "Error de importación: archivo demasiado grande",

@@ -85,10 +85,23 @@ function recolorSingle(svgEl: SVGSVGElement, color: string): void {
   const strokes = new Set<string>();
   for (const node of all) {
     const el = node as SVGElement;
-    const fill = (el.getAttribute("fill") ?? el.style.fill ?? "").trim().toLowerCase();
-    const stroke = (el.getAttribute("stroke") ?? el.style.stroke ?? "").trim().toLowerCase();
-    for (const [value, set] of [[fill, fills], [stroke, strokes]] as const) {
-      if (!value || value === "none" || value === "transparent" || value === "currentcolor") continue;
+    const fill = (el.getAttribute("fill") ?? el.style.fill ?? "")
+      .trim()
+      .toLowerCase();
+    const stroke = (el.getAttribute("stroke") ?? el.style.stroke ?? "")
+      .trim()
+      .toLowerCase();
+    for (const [value, set] of [
+      [fill, fills],
+      [stroke, strokes],
+    ] as const) {
+      if (
+        !value ||
+        value === "none" ||
+        value === "transparent" ||
+        value === "currentcolor"
+      )
+        continue;
       if (value.startsWith("url(")) return;
       set.add(value);
     }
@@ -239,7 +252,10 @@ export function sanitizeSvg(svg: string): string {
         if (value.startsWith("#")) return m;
         const name = attr.toLowerCase();
         if (
-          (name === "to" || name === "from" || name === "by" || name === "values") &&
+          (name === "to" ||
+            name === "from" ||
+            name === "by" ||
+            name === "values") &&
           !value.includes(":") &&
           !value.startsWith("//") &&
           !value.startsWith("\\\\")

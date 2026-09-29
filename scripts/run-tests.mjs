@@ -5,10 +5,7 @@ import { rmSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = join(fileURLToPath(import.meta.url), "..", "..");
-const outFile = join(
-  tmpdir(),
-  `my-obsidian-icons-tests-${process.pid}.mjs`,
-);
+const outFile = join(tmpdir(), `my-obsidian-icons-tests-${process.pid}.mjs`);
 
 await esbuild.build({
   entryPoints: [join(root, "scripts", "tests-entry.ts")],

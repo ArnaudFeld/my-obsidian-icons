@@ -129,14 +129,12 @@ export class IconPickerModal extends Modal {
       });
     }
     const svgItems = [...byRef.values()];
-    const lucideItems: PickerItem[] = this.store
-      .lucideIds()
-      .map((id) => ({
-        ref: `lucide:${id}`,
-        label: id,
-        group: "lucide",
-        hay: hayForPicker(`lucide:${id}`),
-      }));
+    const lucideItems: PickerItem[] = this.store.lucideIds().map((id) => ({
+      ref: `lucide:${id}`,
+      label: id,
+      group: "lucide",
+      hay: hayForPicker(`lucide:${id}`),
+    }));
     const known = new Set([
       ...svgItems.map((i) => i.ref),
       ...lucideItems.map((i) => i.ref),
@@ -182,20 +180,20 @@ export class IconPickerModal extends Modal {
     const names = await this.store.listSvgNames();
     this.buildItems(names);
 
-    new Setting(contentEl)
-      .setName(t("pick.search.name"))
-      .addText((text) => {
-        text.setPlaceholder(t("pick.search.ph")).onChange((value) => {
-          this.query = value;
-          window.clearTimeout(this.searchTimer);
-          this.searchTimer = window.setTimeout(() => this.renderList(), 100);
-        });
+    new Setting(contentEl).setName(t("pick.search.name")).addText((text) => {
+      text.setPlaceholder(t("pick.search.ph")).onChange((value) => {
+        this.query = value;
+        window.clearTimeout(this.searchTimer);
+        this.searchTimer = window.setTimeout(() => this.renderList(), 100);
       });
+    });
 
     this.listEl = contentEl.createDiv({ cls: "obsidian-icon-picker-list" });
     this.renderList();
 
-    const colorWrap = contentEl.createDiv({ cls: "obsidian-icon-picker-colors" });
+    const colorWrap = contentEl.createDiv({
+      cls: "obsidian-icon-picker-colors",
+    });
     const colorHead = colorWrap.createDiv({
       cls: "obsidian-icon-picker-colorhead",
     });
@@ -507,7 +505,10 @@ export class IconPickerModal extends Modal {
           this.listEl
             .querySelectorAll(".obsidian-icon-picker-row")
             .forEach((el) => {
-              if (el.querySelector(".obsidian-icon-picker-name")?.textContent === this.selected) {
+              if (
+                el.querySelector(".obsidian-icon-picker-name")?.textContent ===
+                this.selected
+              ) {
                 el.addClass("is-selected");
               }
             });

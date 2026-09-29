@@ -1,0 +1,13 @@
+# Generiert aus einem Skript, Form gehört zum Skript und nicht zur Hand
+cdn-catalog.ts
+selfhost-catalog.ts
+
+# Build-Artefakt
+main.js
+
+# Vom Skript erzeugte Startauswahl
+starter-icons/
+
+# Prosa und Beispiele im README bleiben wie geschrieben, sonst sortiert der
+# Formatter die gezeigten JSON- und Shortcode-Beispiele um
+*.md

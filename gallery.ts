@@ -60,9 +60,11 @@ export class IconGalleryModal extends Modal {
     for (let i = 0; i < paints.length; i += PAINT_CONCURRENCY) {
       if (this.closed) return;
       await Promise.all(
-        paints.slice(i, i + PAINT_CONCURRENCY).map(({ el, ref, color }) =>
-          renderIconInto(el, ref, this.store, { color }),
-        ),
+        paints
+          .slice(i, i + PAINT_CONCURRENCY)
+          .map(({ el, ref, color }) =>
+            renderIconInto(el, ref, this.store, { color }),
+          ),
       );
     }
   }
@@ -86,7 +88,10 @@ export class IconGalleryModal extends Modal {
       if (entry.color) bits.push(entry.color);
       if (entry.size) bits.push(entry.size);
       if (entry.iconDark) bits.push(t("gal.dark", { value: entry.iconDark }));
-      label.createDiv({ text: bits.join(" · "), cls: "obsidian-icon-picker-more" });
+      label.createDiv({
+        text: bits.join(" · "),
+        cls: "obsidian-icon-picker-more",
+      });
       const remove = row.createEl("button", {
         text: t("gal.remove"),
         cls: "obsidian-icon-gallery-remove",
@@ -117,7 +122,8 @@ export class IconGalleryModal extends Modal {
     }) as HTMLButtonElement;
     more.onclick = () => {
       more.detach();
-      const stepPaints: { el: HTMLElement; ref: IconRef; color?: string }[] = [];
+      const stepPaints: { el: HTMLElement; ref: IconRef; color?: string }[] =
+        [];
       append(from, stepPaints);
       this.addMoreButton(contentEl, used, from + PAGE_SIZE, append);
       void this.paintAll(stepPaints);
@@ -166,7 +172,10 @@ export class IconGalleryModal extends Modal {
       if (entry.color) bits.push(entry.color);
       if (entry.size) bits.push(entry.size);
       if (entry.iconDark) bits.push(t("gal.dark", { value: entry.iconDark }));
-      label.createDiv({ text: bits.join(" · "), cls: "obsidian-icon-picker-more" });
+      label.createDiv({
+        text: bits.join(" · "),
+        cls: "obsidian-icon-picker-more",
+      });
       const remove = row.createEl("button", {
         text: t("gal.remove"),
         cls: "obsidian-icon-gallery-remove",
@@ -213,7 +222,11 @@ export class IconGalleryModal extends Modal {
 export class IconCheckModal extends Modal {
   constructor(
     app: App,
-    private result: { broken: [string, string][]; used: number; unused: number },
+    private result: {
+      broken: [string, string][];
+      used: number;
+      unused: number;
+    },
   ) {
     super(app);
   }

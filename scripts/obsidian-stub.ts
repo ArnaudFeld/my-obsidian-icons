@@ -132,9 +132,6 @@ if (typeof globalAny.window === "undefined") {
 }
 
 export class Notice {
-  constructor(
-    _message?: unknown,
-    _timeout?: number,
-  ) {}
+  constructor(_message?: unknown, _timeout?: number) {}
   hide(): void {}
 }

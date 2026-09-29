@@ -1,6 +1,18 @@
 import { App, Notice, TFile } from "obsidian";
-import { IconStore, normalizeSvgName, parseIconRef, sanitizeSvg } from "./icons";
-import { EXT_KEY, IconMapping, MappingEntry, MappingStore, normalizeEntry, normalizeExt } from "./mapping";
+import {
+  IconStore,
+  normalizeSvgName,
+  parseIconRef,
+  sanitizeSvg,
+} from "./icons";
+import {
+  EXT_KEY,
+  IconMapping,
+  MappingEntry,
+  MappingStore,
+  normalizeEntry,
+  normalizeExt,
+} from "./mapping";
 import { t } from "./i18n";
 
 export interface IconPackage {
@@ -140,7 +152,11 @@ export function collectImportEntries(
   }
   const extItems: [string, MappingEntry][] = [];
   const extSection: unknown = mapping[EXT_KEY];
-  if (extSection && typeof extSection === "object" && !Array.isArray(extSection)) {
+  if (
+    extSection &&
+    typeof extSection === "object" &&
+    !Array.isArray(extSection)
+  ) {
     for (const [raw, value] of Object.entries(
       extSection as Record<string, string | MappingEntry>,
     )) {
@@ -191,7 +207,10 @@ export function importIcons(
         return;
       }
       try {
-        const folder = getFolder().trim().replace(/^\/+/, "").replace(/\/+$/, "");
+        const folder = getFolder()
+          .trim()
+          .replace(/^\/+/, "")
+          .replace(/\/+$/, "");
         let written = 0;
         let skipped = 0;
         let writtenBytes = 0;
@@ -241,9 +260,7 @@ export function importIcons(
         await mapping.importAll(pathItems, extItems);
         store.clear();
         onDone();
-        new Notice(
-          t("ex.imported", { entries, files: written, skipped }),
-        );
+        new Notice(t("ex.imported", { entries, files: written, skipped }));
       } catch {
         new Notice(t("ex.writeErr"));
       }
