@@ -4,6 +4,7 @@
   "version": "0.0.10",
   "minAppVersion": "1.0.0",
   "description": "Custom SVGs, Devicon, Simple Icons and Lucide as {{icon:name}} in notes and via right-click in the explorer. Local, lightweight, yours.",
-  "author": "arnaud",
+  "author": "ArnaudFeld",
+  "authorUrl": "https://github.com/arnaudfeld",
   "isDesktopOnly": false
 }

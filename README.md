@@ -1,10 +1,29 @@
 # M.O.I. – My Obsidian Icons
 
+![M.O.I. – My Obsidian Icons: colored icons in the file explorer, the {{icon:…}} shortcode and the frontmatter fields](images/banner_en.webp)
+
 Deutsch: [README.de.md](README.de.md)
 
 The slogan appears in the settings tab in Obsidian's language: *Local, lightweight, yours.* (de *Lokal, leicht, deins.*, fr *Local, léger, à vous.*, es *Local, ligero, tuyo.*). All other languages get the English version.
 
 Custom SVGs, Devicon, Simple Icons and Lucide in notes and in the file explorer. No runtime dependencies.
+
+## Install
+
+If you only want to use the plugin and not change the code, copy `manifest.json`, `main.js` and `styles.css` into
+`<Vault>/.obsidian/plugins/my-obsidian-icons/` and enable it in Obsidian under Settings, Community plugins.
+Those three files are the whole plugin.
+
+To build it yourself, clone the repository and run:
+
+```
+npm install --legacy-peer-deps
+npm run build
+```
+
+The `--legacy-peer-deps` is required, because `obsidian` asks for an older `@codemirror/state` than the installed one.
+After a code change only `main.js` changes and has to be copied again. When the version changes,
+`manifest.json` changes too. `data.json` is never copied, it holds your settings.
 
 ## Shortcode in notes
 
@@ -12,7 +31,7 @@ Custom SVGs, Devicon, Simple Icons and Lucide in notes and in the file explorer.
 {{icon:name}}
 {{icon:devicon/proxmox}}
 {{icon:simple/homeassistant}}
-{{icon:lucide:server}}
+{{icon:lucide:lucide-server}}
 {{icon:name|24}}
 {{icon:name|1.5em}}
 {{icon:name|red}}
@@ -20,7 +39,7 @@ Custom SVGs, Devicon, Simple Icons and Lucide in notes and in the file explorer.
 {{icon:name|dark:simple/docker}}
 ```
 
-The default folder is `_assets/icons` and can be changed in the settings. Without a size, 1em applies; a plain number counts as pixels. Second to fourth part in any order: size, color as a theme name or CSS color, or a dark variant with `dark:`. `lucide:` uses the built-in Obsidian icons, no file needed. While typing `{{icon:` the plugin suggests names with a preview, and Devicon search also understands tags like database.
+The default folder is `_assets/icons` and can be changed in the settings. Without a size, 1em applies; a plain number counts as pixels. Second to fourth part in any order: size, color as a theme name or CSS color, or a dark variant with `dark:`. `lucide:` uses the built-in Obsidian icons, no file needed. Note the doubled prefix: `lucide:lucide-server`. Obsidian names its icons `lucide-server`, and the `lucide:` in front of it belongs to this plugin. Which icons exist depends on your Obsidian version, so look them up in the picker or the suggestions. While typing `{{icon:` the plugin suggests names with a preview, and Devicon search also understands tags like database.
 
 Emoji are only available in the explorer mapping, as `emoji:📁`. The shortcode form does not work, because the icon name may only contain letters, digits, `-`, `_`, `/`, `:` and `.`.
 
@@ -43,7 +62,7 @@ The short form `"path": "devicon/docker"` without a color stays valid. Renaming 
 
 ## File type icons
 
-In the settings, one icon per extension as a fallback after path and frontmatter, for example md to lucide:file-text. Starts empty, extension without a dot. Applies to explorer, tabs and titles; folders never fall under it. Stored under `__ext__` in the same mapping file; export and gallery know that section.
+In the settings, one icon per extension as a fallback after path and frontmatter, for example md to lucide:lucide-file-text. Starts empty, extension without a dot. Applies to explorer, tabs and titles; folders never fall under it. Stored under `__ext__` in the same mapping file; export and gallery know that section.
 
 ## Tabs, titles and frontmatter
 
@@ -89,11 +108,8 @@ Warnings in the developer console stay German; those are messages for debugging,
 
 `starter-icons/` holds 30 Devicon homelab icons, 10 Simple Icons brands, and Dockhand, Technitium and AdGuard Home as a base. Copy the contents to `_assets/icons/` in the vault, then for example {{icon:dockhand}} works. Generated with `python3 scripts/fetch-icons.py`.
 
-Licenses: Devicon is MIT, Simple Icons is CC0, Lucide is ISC, selfh.st icons are CC-BY-4.0 with attribution to selfh.st. Trademarks and logos belong to their respective owners and serve only to identify them in your own documentation.
+## License
 
-## Install
+MIT, see [LICENSE](LICENSE).
 
-1. `npm install --legacy-peer-deps`
-2. `npm run build`
-3. Copy the folder with `manifest.json`, `main.js` and `styles.css` to `<Vault>/.obsidian/plugins/my-obsidian-icons/`
-4. Enable the plugin in Obsidian
+Bundled third-party content is listed in [LICENSES-THIRD-PARTY.md](LICENSES-THIRD-PARTY.md): Devicon is MIT, Simple Icons is CC0, selfh.st icons are CC-BY-4.0 with attribution to selfh.st. Lucide is not bundled, its icons come from Obsidian itself. Trademarks and logos belong to their respective owners and serve only to identify them in your own documentation.

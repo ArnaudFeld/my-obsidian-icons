@@ -5,3 +5,6 @@ node_modules/
 # Sitzungsdateien aus externen Tools
 session*.md
 session*.json
+
+# Quelle der Banner, nicht Teil des Repos
+moi_screenshot_1.jpg
