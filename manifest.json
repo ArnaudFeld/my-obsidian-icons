@@ -1,6 +1,6 @@
 {
   "id": "moi-icons",
-  "name": "M.O.I. – My Obsidian Icons",
+  "name": "My Own Icons",
   "version": "0.0.10",
   "minAppVersion": "1.8.7",
   "description": "Use your own SVGs, Devicon, Simple Icons and Lucide in notes via a shortcode, and in the file explorer.",

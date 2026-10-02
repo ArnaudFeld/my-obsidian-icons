@@ -1,6 +1,6 @@
-# M.O.I. – My Obsidian Icons
+# M.O.I. – My Own Icons
 
-![M.O.I. – My Obsidian Icons: farbige Icons in der Seitenleiste, der Shortcode {{icon:…}} und die Frontmatter-Felder](images/banner_de.webp)
+![M.O.I. – My Own Icons: farbige Icons in der Seitenleiste, der Shortcode {{icon:…}} und die Frontmatter-Felder](images/banner_de.webp)
 
 English: [README.md](README.md)
 

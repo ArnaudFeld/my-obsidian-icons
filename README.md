@@ -1,6 +1,6 @@
-# M.O.I. – My Obsidian Icons
+# M.O.I. – My Own Icons
 
-![M.O.I. – My Obsidian Icons: colored icons in the file explorer, the {{icon:…}} shortcode and the frontmatter fields](images/banner_en.webp)
+![M.O.I. – My Own Icons: colored icons in the file explorer, the {{icon:…}} shortcode and the frontmatter fields](images/banner_en.webp)
 
 Deutsch: [README.de.md](README.de.md)
 
