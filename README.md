@@ -67,7 +67,7 @@ No runtime dependencies.
 ## Install
 
 Copy `manifest.json`, `main.js` and `styles.css` into
-`<Vault>/.obsidian/plugins/my-obsidian-icons/` and enable the plugin under Settings, Community
+`<Vault>/.obsidian/plugins/moi-icons/` and enable the plugin under Settings, Community
 plugins. Those three files are the whole plugin.
 
 To build it yourself, clone the repository and run:

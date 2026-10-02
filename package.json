@@ -1,5 +1,5 @@
 {
-  "name": "my-obsidian-icons",
+  "name": "moi-icons",
   "version": "0.0.10",
   "description": "Obsidian Plugin: {{icon:name}} in Notizen und Explorer Icons per Rechtsklick",
   "main": "main.js",
