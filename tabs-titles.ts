@@ -220,7 +220,7 @@ export class TabsTitles {
   ): Promise<void> {
     const ref = parseIconRef(entry.icon);
     if (!ref) return;
-    const badge = document.createSpan();
+    const badge = createSpan();
     badge.addClass("obsidian-icon-title");
     await renderIconInto(badge, ref, this.store, {
       color: entry.color,

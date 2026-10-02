@@ -11,6 +11,39 @@ export class StubVault {
     return [...this.files.keys()].map((path) => this.asFile(path));
   }
 
+  /**
+   * Ordner aus den bekannten Pfaden ableiten. Echtes Obsidian liefert die
+   * Hierarchie, im Stub wird sie aus den Dateipfaden gebaut, damit
+   * listSvgNames ohne echten Vault getestet werden kann.
+   */
+  getFolderByPath(path: string): TFolder | null {
+    const prefix = path === "" ? "" : path + "/";
+    const folder = new TFolder();
+    folder.path = path;
+    const subdirs = new Set<string>();
+    let found = false;
+    for (const file of this.files.keys()) {
+      if (!file.startsWith(prefix)) continue;
+      const rest = file.slice(prefix.length);
+      const slash = rest.indexOf("/");
+      if (slash < 0) {
+        folder.children.push(this.asFile(file));
+      } else {
+        subdirs.add(prefix + rest.slice(0, slash));
+      }
+      found = true;
+    }
+    if (!found) return null;
+    for (const sub of subdirs) {
+      const child = new TFolder();
+      child.path = sub;
+      const deeper = this.getFolderByPath(sub);
+      child.children = deeper ? deeper.children : [];
+      folder.children.push(child);
+    }
+    return folder;
+  }
+
   private asFile(path: string): TFile {
     const file = new TFile();
     file.path = path;
@@ -51,7 +84,9 @@ export class TFile extends TAbstractFile {
   extension = "";
 }
 
-export class TFolder extends TAbstractFile {}
+export class TFolder extends TAbstractFile {
+  children: (TFile | TFolder)[] = [];
+}
 
 export class WorkspaceLeaf {}
 

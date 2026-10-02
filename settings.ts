@@ -28,13 +28,25 @@ export const DEFAULT_SETTINGS: MoiSettings = {
 };
 
 const STRING_FIELDS = ["iconFolder", "mappingFile"] as const;
-const BOOLEAN_FIELDS = [
+export const BOOLEAN_FIELDS = [
   "cdnEnabled",
   "selfhostEnabled",
   "autoLightVariant",
   "showTabIcons",
   "showTitleIcons",
 ] as const;
+
+export type BooleanSettingKey = (typeof BOOLEAN_FIELDS)[number];
+
+/**
+ * True nur fuer die Schalter. Der Settings Tab braucht das, um einen key
+ * ohne Cast auf eine Boolean zuzuordnen, und der Check in `k in
+ * DEFAULT_SETTINGS` war zu weit: der traf auch auf die beiden Pfadfelder zu,
+ * ein Boolean haette dort landen koennen.
+ */
+export function isBooleanSettingKey(key: string): key is BooleanSettingKey {
+  return (BOOLEAN_FIELDS as readonly string[]).includes(key);
+}
 
 /**
  * Wert für Feld, Standard wenn unbrauchbar. Fehlerhafte Felder werden

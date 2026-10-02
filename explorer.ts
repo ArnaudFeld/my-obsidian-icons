@@ -169,7 +169,7 @@ export class ExplorerIcons {
       return;
     }
     if (!badge) {
-      badge = activeDoc().createSpan();
+      badge = createSpan();
       badge.className = "obsidian-icon-explorer";
       const inner = selfEl.querySelector(".tree-item-inner");
       if (inner) inner.insertAdjacentElement("beforebegin", badge);

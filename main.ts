@@ -32,7 +32,12 @@ import {
   themeVar,
 } from "./icons";
 import { MappingStore, normalizeExt } from "./mapping";
-import { MoiSettings, DEFAULT_SETTINGS, readSettings } from "./settings";
+import {
+  MoiSettings,
+  DEFAULT_SETTINGS,
+  isBooleanSettingKey,
+  readSettings,
+} from "./settings";
 import { insideCode } from "./code-context";
 import { ExplorerIcons } from "./explorer";
 import { IconPickerModal, PickerMeta, PickerResult } from "./picker";
@@ -176,7 +181,10 @@ class IconWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const span = document.createSpan();
+    // Ohne document als Empfaenger: die Obsidian Helfer haengen ihr Ergebnis
+    // an den Empfaenger, und ein Dokument darf nur ein Kind haben. Die globale
+    // Variante liefert ein losgeloestes Element, document.createElement auch.
+    const span = createSpan();
     const ref = this.darkMode && this.dark ? this.dark : this.ref;
     void renderIconInto(span, ref, this.store, {
       size: this.size,
@@ -1050,7 +1058,7 @@ export default class MoiPlugin extends Plugin {
       if (!ref || ref.kind === "emoji") {
         frag.appendText(m[0]);
       } else {
-        const span = document.createSpan();
+        const span = createSpan();
         await renderIconInto(
           span,
           resolveDarkRef(ref, dark, this.settings.autoLightVariant),
@@ -1185,9 +1193,9 @@ class MoiSettingTab extends PluginSettingTab {
       this.plugin.saveSettingsSoon();
       return;
     }
-    // Nur die sieben Schalter, keine fremden Schluessel annehmen.
-    if (typeof value === "boolean" && k in DEFAULT_SETTINGS) {
-      (this.plugin.settings[k] as boolean) = value;
+    // Nur die fuenf Schalter, keine fremden Schluessel annehmen.
+    if (typeof value === "boolean" && isBooleanSettingKey(k)) {
+      this.plugin.settings[k] = value;
       void this.plugin.saveSettings();
     }
   }
@@ -1196,18 +1204,12 @@ class MoiSettingTab extends PluginSettingTab {
     let newExt = "";
     return [
       {
+        // Name und Slogan kommen beide aus Obsidian. Ein eigener render
+        // waere doppelt: der Framework malt name und desc selbst, der eigene
+        // Kopf stand dadurch zweimal da.
         name: "My Own Icons",
+        desc: slogan(),
         searchable: false,
-        render: (setting) => {
-          const head = setting.settingEl.createDiv({
-            cls: "moi-settings-head",
-          });
-          head.createEl("strong", {
-            text: "My Own Icons",
-            cls: "moi-settings-name",
-          });
-          head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
-        },
       },
       {
         name: t("set.iconFolder.name"),
@@ -1241,7 +1243,7 @@ class MoiSettingTab extends PluginSettingTab {
           name: `*.${ext}`,
           desc: entry.icon,
           render: (setting: Setting) => {
-            const preview = document.createSpan();
+            const preview = createSpan();
             preview.addClass("obsidian-icon-inline");
             preview.setCssStyles({ width: "18px", height: "18px" });
             setting.settingEl.prepend(preview);

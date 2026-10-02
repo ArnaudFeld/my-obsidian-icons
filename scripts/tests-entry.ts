@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   normalizeFolder,
   normalizeSvgName,
@@ -1021,6 +1023,52 @@ check("Bereinigung ohne svg ergibt leeren String", () => {
   assert.equal(
     sanitizeSvg("<svg><foreignObject>x</foreignObject></svg>"),
     "<svg></svg>",
+  );
+});
+
+/**
+ * Die Obsidian Helfer createEl, createDiv und createSpan haengen ihr Ergebnis
+ * an den Empfaenger. Auf document aufzurufen wirft HierarchyRequestError, weil
+ * ein Dokument genau ein Kind haben darf, auf einem Element haengt das neue
+ * Element sofort im Baum. Die globale Form ohne Empfaenger liefert ein
+ * losgeloestes Element und ist die einzige richtige fuer abhaengige Knoten.
+ */
+check("Kein create-Helfer mit document als Empfaenger", () => {
+  const quellen = [
+    "cdn.ts",
+    "code-context.ts",
+    "exchange.ts",
+    "explorer.ts",
+    "frontmatter.ts",
+    "gallery.ts",
+    "i18n.ts",
+    "icons.ts",
+    "main.ts",
+    "mapping.ts",
+    "picker.ts",
+    "selfhost-catalog.ts",
+    "cdn-catalog.ts",
+    "settings.ts",
+    "suggest.ts",
+    "tabs-titles.ts",
+  ];
+  const verboten = /document\s*\.\s*create(El|Div|Span|Svg)\s*\(/;
+  const treffer: string[] = [];
+  for (const datei of quellen) {
+    // Der Harness laeuft aus der Repo-Wurzel, das stimmt fuer npm test.
+    const zeilen = readFileSync(join(process.cwd(), datei), "utf8")
+      .split("\n")
+      .map((zeile, i) => ({ zeile: zeile.trim(), nr: i + 1 }))
+      // Kommentare beschreiben den Fehler und sollen nicht greifen.
+      .filter(({ zeile }) => !zeile.startsWith("//") && !zeile.startsWith("*"));
+    for (const { zeile, nr } of zeilen) {
+      if (verboten.test(zeile)) treffer.push(`${datei}:${nr}`);
+    }
+  }
+  assert.deepEqual(
+    treffer,
+    [],
+    `document als Empfaenger: ${treffer.join(", ")}`,
   );
 });
 

@@ -191,7 +191,7 @@ export function importIcons(
   getFolder: () => string,
   onDone: () => void,
 ): void {
-  const input = document.createEl("input");
+  const input = createEl("input");
   input.type = "file";
   input.accept = "application/json,.json";
   input.onchange = () => {

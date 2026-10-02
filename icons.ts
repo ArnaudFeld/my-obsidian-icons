@@ -1,4 +1,4 @@
-import { App, TFile, getIconIds, setIcon } from "obsidian";
+import { App, TFile, TFolder, getIconIds, setIcon } from "obsidian";
 
 export type IconRef =
   | { kind: "svg"; name: string }
@@ -64,7 +64,7 @@ export function resolveColor(color: string): string {
   const key = `${isDarkTheme() ? "dark" : "light"}|${color}`;
   const hit = resolveCache.get(key);
   if (hit !== undefined) return hit;
-  const probe = document.createSpan();
+  const probe = createSpan();
   probe.style.color = color;
   document.body.appendChild(probe);
   const rgb = getComputedStyle(probe).color;
@@ -344,7 +344,7 @@ export function contrastOnBackground(color: string): number | null {
   if (contrastCache.size > 500) contrastCache.clear();
   let out: number | null = null;
   try {
-    const probe = document.createSpan();
+    const probe = createSpan();
     probe.style.color = resolveColor(themeVar(color) ?? color);
     probe.setCssStyles({ background: "var(--background-primary)" });
     document.body.appendChild(probe);
@@ -419,16 +419,35 @@ export class IconStore {
     return null;
   }
 
-  /** Alle SVGs im Icon Ordner, relativ und ohne Endung, sortiert. */
+  /**
+   * Alle SVGs im Icon Ordner, relativ und ohne Endung, sortiert.
+   *
+   * Laeuft bewusst ueber den Ordnerbaum und nicht ueber vault.getFiles():
+   * das enumerated den ganzen Vault, auch fuer ein Plugin, das nur in einem
+   * konfigurierten Ordner schaut. Ein Stack statt Rekursion, damit tiefe
+   * Ordnerketten nicht am Aufrufstack scheitern.
+   */
   async listSvgNames(): Promise<string[]> {
     const folder = normalizeFolder(this.getFolder());
+    const root = this.app.vault.getFolderByPath(folder);
+    if (!root) return [];
     const prefix = folder + "/";
-    return this.app.vault
-      .getFiles()
-      .filter((f) => f.path.startsWith(prefix) && f.extension === "svg")
-      .map((f) => f.path.slice(prefix.length, -".svg".length))
-      .filter((n) => /^[A-Za-z0-9_\-/]+$/.test(n))
-      .sort((a, b) => a.localeCompare(b));
+    const out: string[] = [];
+    const stack: TFolder[] = [root];
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      if (!dir) break;
+      for (const child of dir.children) {
+        if (child instanceof TFolder) {
+          stack.push(child);
+          continue;
+        }
+        if (!(child instanceof TFile) || child.extension !== "svg") continue;
+        const name = child.path.slice(prefix.length, -".svg".length);
+        if (/^[A-Za-z0-9_\-/]+$/.test(name)) out.push(name);
+      }
+    }
+    return out.sort((a, b) => a.localeCompare(b));
   }
 
   lucideIds(): string[] {
