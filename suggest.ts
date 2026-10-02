@@ -8,8 +8,8 @@ import {
   setIcon,
 } from "obsidian";
 import { DEVICON_NAMES, DEVICON_TAGS } from "./cdn-catalog";
-import { SIMPLE_CDN_SLUGS, fetchSimpleSlugs, loadCatalogs } from "./cdn";
-import { IconStore, THEME_COLORS, themeVar } from "./icons";
+import { SIMPLE_CDN_SLUGS, loadCatalogs } from "./cdn";
+import { IconStore, THEME_COLORS, insertSvgOrText, themeVar } from "./icons";
 
 export interface SuggestItem {
   ref: string;
@@ -188,8 +188,7 @@ export class IconSuggest extends EditorSuggest<SuggestItem> {
     preview.textContent = "…";
     void this.store.getSvg(item.ref).then((svg) => {
       if (!preview.isConnected) return;
-      if (svg) preview.innerHTML = svg;
-      else preview.textContent = "⭳";
+      insertSvgOrText(preview, svg, "⭳");
     });
   }
 
@@ -316,8 +315,7 @@ export class FrontmatterSuggest extends EditorSuggest<SuggestItem> {
     preview.textContent = "…";
     void this.store.getSvg(item.ref).then((svg) => {
       if (!preview.isConnected) return;
-      if (svg) preview.innerHTML = svg;
-      else preview.textContent = "⭳";
+      insertSvgOrText(preview, svg, "⭳");
     });
   }
 

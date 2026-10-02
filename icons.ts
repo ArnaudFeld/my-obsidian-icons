@@ -64,7 +64,7 @@ export function resolveColor(color: string): string {
   const key = `${isDarkTheme() ? "dark" : "light"}|${color}`;
   const hit = resolveCache.get(key);
   if (hit !== undefined) return hit;
-  const probe = document.createElement("span");
+  const probe = document.createSpan();
   probe.style.color = color;
   document.body.appendChild(probe);
   const rgb = getComputedStyle(probe).color;
@@ -344,9 +344,9 @@ export function contrastOnBackground(color: string): number | null {
   if (contrastCache.size > 500) contrastCache.clear();
   let out: number | null = null;
   try {
-    const probe = document.createElement("span");
+    const probe = document.createSpan();
     probe.style.color = resolveColor(themeVar(color) ?? color);
-    probe.style.background = "var(--background-primary)";
+    probe.setCssStyles({ background: "var(--background-primary)" });
     document.body.appendChild(probe);
     const computed = getComputedStyle(probe);
     const fg = luminance(computed.color);
@@ -479,6 +479,39 @@ export function renderMissing(el: HTMLElement, label: string): void {
   console.warn(`[moi] nicht gefunden: ${label}`);
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/**
+ * SVG-Quelltext als echte DOM-Knoten einsetzen statt über innerHTML. Der
+ * Sanitizer läuft davor, der Parser ist die zweite Verteidigung: er hält den
+ * String aus jedem HTML-Sink heraus, weil nur noch Knoten wandern.
+ * Gibt das eingefügte svg-Element zurück, oder null wenn unbrauchbar.
+ */
+export function insertSvg(el: HTMLElement, svg: string): SVGSVGElement | null {
+  const root = new DOMParser().parseFromString(
+    svg,
+    "image/svg+xml",
+  ).documentElement;
+  if (root.localName !== "svg" || root.namespaceURI !== SVG_NS) {
+    el.replaceChildren();
+    return null;
+  }
+  const node = document.importNode(root, true) as unknown as SVGSVGElement;
+  el.replaceChildren(node);
+  return node;
+}
+
+/** Wie insertSvg, aber mit Text als Rückfall, wenn nichts Brauchbares da ist. */
+export function insertSvgOrText(
+  el: HTMLElement,
+  svg: string | null | undefined,
+  fallback: string,
+): void {
+  if (svg && insertSvg(el, svg)) return;
+  el.replaceChildren();
+  el.textContent = fallback;
+}
+
 /**
  * Malt eine Referenz in ein span. Ergänzt die Klasse obsidian-icon-inline,
  * vorhandene Klassen bleiben. Fehlende Icons zeigen einen Platzhalter.
@@ -527,8 +560,7 @@ export async function renderIconInto(
     renderMissing(el, label);
     return;
   }
-  el.innerHTML = svg;
-  const svgEl = el.querySelector("svg");
+  const svgEl = insertSvg(el, svg);
   if (!svgEl) {
     el.empty();
     renderMissing(el, label);

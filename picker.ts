@@ -3,6 +3,7 @@ import {
   IconStore,
   THEME_COLORS,
   contrastOnBackground,
+  insertSvgOrText,
   parseIconRef,
   parseSize,
   renderIconInto,
@@ -197,11 +198,11 @@ export class IconPickerModal extends Modal {
     const colorHead = colorWrap.createDiv({
       cls: "obsidian-icon-picker-colorhead",
     });
-    colorHead.createEl("div", {
+    colorHead.createDiv({
       text: t("pick.color"),
       cls: "obsidian-icon-picker-label",
     });
-    this.colorNameEl = colorHead.createEl("div", {
+    this.colorNameEl = colorHead.createDiv({
       cls: "obsidian-icon-picker-colorname",
     });
     const colorBody = colorWrap.createDiv({
@@ -218,7 +219,7 @@ export class IconPickerModal extends Modal {
       cls: "obsidian-icon-dot obsidian-icon-dot-none",
       attr: { title: t("pick.colorNoneTip") },
     });
-    noneWrap.createEl("div", {
+    noneWrap.createDiv({
       text: t("pick.colorOff"),
       cls: "obsidian-icon-dotlabel",
     });
@@ -238,7 +239,7 @@ export class IconPickerModal extends Modal {
         this.color = name;
         this.refreshColorUI();
       };
-      wrap.createEl("div", {
+      wrap.createDiv({
         text: colorName(name),
         cls: "obsidian-icon-dotlabel",
       });
@@ -247,11 +248,11 @@ export class IconPickerModal extends Modal {
     this.hexSwatch = hexRow.createEl("input", {
       cls: "obsidian-icon-dot-hex",
       attr: { type: "color", title: t("pick.colorFree") },
-    }) as HTMLInputElement;
+    });
     this.hexText = hexRow.createEl("input", {
       cls: "obsidian-icon-picker-hextext",
       attr: { type: "text", placeholder: "#339af0", title: t("pick.hex") },
-    }) as HTMLInputElement;
+    });
     this.hexSwatch.oninput = () => {
       this.color = this.hexSwatch.value;
       this.refreshColorUI();
@@ -264,9 +265,8 @@ export class IconPickerModal extends Modal {
       this.refreshColorUI();
     };
     this.colorWarnEl = colorWrap.createDiv({
-      cls: "obsidian-icon-picker-warn",
+      cls: "obsidian-icon-picker-warn obsidian-icon-picker-warn-hidden",
     });
-    this.colorWarnEl.style.display = "none";
     this.refreshColorUI();
 
     const footer = contentEl.createDiv({ cls: "obsidian-icon-picker-footer" });
@@ -274,20 +274,20 @@ export class IconPickerModal extends Modal {
     cancel.onclick = () => this.close();
     this.saveFileBtn = footer.createEl("button", {
       text: t("pick.saveFile"),
-    }) as HTMLButtonElement;
+    });
     this.saveFileBtn.onclick = () => {
       if (this.selected && this.onSaveFile) this.onSaveFile(this.selected);
     };
     this.saveBtn = footer.createEl("button", {
       text: t("pick.apply"),
       cls: "mod-cta",
-    }) as HTMLButtonElement;
+    });
     this.saveBtn.disabled = !this.selected;
     this.updateSaveFileBtn();
     this.darkBtn = footer.createEl("button", {
       text: t("pick.dark"),
       attr: { title: t("pick.darkTip") },
-    }) as HTMLButtonElement;
+    });
     this.darkBtn.onclick = () => {
       this.pickDark = !this.pickDark;
       this.darkBtn.setText(
@@ -356,7 +356,7 @@ export class IconPickerModal extends Modal {
     const ratio = this.color ? contrastOnBackground(this.color) : null;
     if (this.colorWarnEl) {
       const low = ratio !== null && ratio < 3;
-      this.colorWarnEl.style.display = low ? "" : "none";
+      this.colorWarnEl.toggleClass("obsidian-icon-picker-warn-hidden", !low);
       if (low) {
         this.colorWarnEl.textContent = t("pick.contrast", {
           ratio: ratio.toFixed(1),
@@ -415,7 +415,7 @@ export class IconPickerModal extends Modal {
       const rows = buckets.get(group);
       if (!rows || rows.length === 0) continue;
       any = true;
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: t(`group.${group}`),
         cls: "obsidian-icon-picker-group",
       });
@@ -434,7 +434,7 @@ export class IconPickerModal extends Modal {
             text: this.meta.favorites.includes(item.ref) ? "★" : "☆",
             cls: "obsidian-icon-picker-fav",
             attr: { title: t("pick.favToggle") },
-          }) as HTMLButtonElement;
+          });
           fav.onclick = (event) => {
             event.stopPropagation();
             this.meta?.onToggleFavorite(item.ref);
@@ -487,15 +487,12 @@ export class IconPickerModal extends Modal {
     row.addClass("is-selected");
     if (item.cdn) {
       this.saveBtn.disabled = true;
-      const preview = row.querySelector(
+      const preview = row.querySelector<HTMLElement>(
         ".obsidian-icon-picker-preview",
-      ) as HTMLElement | null;
+      );
       if (preview) preview.textContent = "…";
       const svg = await this.store.getSvg(item.ref);
-      if (preview) {
-        if (svg) preview.innerHTML = svg;
-        else preview.textContent = "?";
-      }
+      if (preview) insertSvgOrText(preview, svg, "?");
       if (!svg) {
         // Abruf gescheitert: Auswahl und Buttons auf den vorigen Stand
         // zurueck, sonst bleibt der Dialog bis zum naechsten Klick gesperrt.
@@ -542,7 +539,6 @@ export class IconPickerModal extends Modal {
     }
     const svg = await this.store.getSvg(item.ref);
     if (!el.isConnected) return;
-    if (svg) el.innerHTML = svg;
-    else el.textContent = "?";
+    insertSvgOrText(el, svg, "?");
   }
 }

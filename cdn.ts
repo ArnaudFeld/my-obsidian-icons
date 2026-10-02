@@ -70,7 +70,7 @@ async function fetchText(url: string): Promise<string | null> {
   }
 }
 
-async function fetchJson(url: string): Promise<unknown | null> {
+async function fetchJson(url: string): Promise<unknown> {
   try {
     const res = await requestUrl({ url });
     if (res.status !== 200) return null;
@@ -436,8 +436,15 @@ export class CdnCache {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
       this.dirty = false;
-      this.persist.save(Object.fromEntries(this.cache));
+      this.persist.save(this.cacheRecord());
     }, 2000);
+  }
+
+  /** Cache als Plain Object, ohne Object.fromEntries und ohne any. */
+  private cacheRecord(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [name, svg] of this.cache) out[name] = svg;
+    return out;
   }
 
   flush(): void {

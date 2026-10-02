@@ -120,9 +120,9 @@ export class ExplorerIcons {
   }
 
   private watchLeaf(leaf: WorkspaceLeaf): void {
-    const container = leaf.view.containerEl.querySelector(
+    const container = leaf.view.containerEl.querySelector<HTMLElement>(
       ":scope > .nav-files-container > div",
-    ) as HTMLElement | null;
+    );
     if (!container || this.watchers.has(container)) return;
     const observer = new MutationObserver((muts) => {
       // Eigene Badge Malungen ignorieren, sonst Endlosschleife bei Missing.
@@ -161,15 +161,15 @@ export class ExplorerIcons {
       this.getAutoLight(),
     );
     const ref = parseIconRef(entry.icon);
-    let badge = selfEl.querySelector(
+    let badge = selfEl.querySelector<HTMLElement>(
       ":scope > .obsidian-icon-explorer",
-    ) as HTMLElement | null;
+    );
     if (!ref) {
       badge?.remove();
       return;
     }
     if (!badge) {
-      badge = activeDoc().createElement("span");
+      badge = activeDoc().createSpan();
       badge.className = "obsidian-icon-explorer";
       const inner = selfEl.querySelector(".tree-item-inner");
       if (inner) inner.insertAdjacentElement("beforebegin", badge);
@@ -178,7 +178,7 @@ export class ExplorerIcons {
     const key = badgeKey(dark, entry.icon, entry.color, entry.size);
     if (badge.dataset.ref === key) return;
     badge.dataset.ref = key;
-    badge.innerHTML = "";
+    badge.replaceChildren();
     badge.removeAttribute("style");
     await renderIconInto(badge, ref, this.store, {
       color: entry.color,

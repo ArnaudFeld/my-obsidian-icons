@@ -95,7 +95,7 @@ export class IconGalleryModal extends Modal {
       const remove = row.createEl("button", {
         text: t("gal.remove"),
         cls: "obsidian-icon-gallery-remove",
-      }) as HTMLButtonElement;
+      });
       remove.onclick = () => {
         void this.mapping.remove(path).then(() => {
           this.onChanged();
@@ -119,7 +119,7 @@ export class IconGalleryModal extends Modal {
     const more = contentEl.createEl("button", {
       text: t("gal.more", { count: used.length - from }),
       cls: "obsidian-icon-picker-more",
-    }) as HTMLButtonElement;
+    });
     more.onclick = () => {
       more.detach();
       const stepPaints: { el: HTMLElement; ref: IconRef; color?: string }[] =
@@ -138,7 +138,7 @@ export class IconGalleryModal extends Modal {
 
     const used = this.mapping.entries();
     const extRules = this.mapping.extEntries();
-    contentEl.createEl("div", {
+    contentEl.createDiv({
       text: t("gal.assigned", { count: used.length, rules: extRules.length }),
       cls: "obsidian-icon-picker-group",
     });
@@ -156,7 +156,7 @@ export class IconGalleryModal extends Modal {
     this.appendUsedRows(contentEl, used, 0, paints);
     this.addMoreButton(contentEl, used, PAGE_SIZE, appendUsed);
 
-    contentEl.createEl("div", {
+    contentEl.createDiv({
       text: t("gal.ext", { count: extRules.length }),
       cls: "obsidian-icon-picker-group",
     });
@@ -179,7 +179,7 @@ export class IconGalleryModal extends Modal {
       const remove = row.createEl("button", {
         text: t("gal.remove"),
         cls: "obsidian-icon-gallery-remove",
-      }) as HTMLButtonElement;
+      });
       remove.onclick = () => {
         void this.mapping.removeExt(name).then(() => {
           this.onChanged();
@@ -192,7 +192,7 @@ export class IconGalleryModal extends Modal {
     if (this.closed) return;
     const entries = [...used, ...extRules].map(([, entry]) => entry);
     const unused = unusedSvgNames(local, entries);
-    contentEl.createEl("div", {
+    contentEl.createDiv({
       text: t("gal.unused", { count: unused.length }),
       cls: "obsidian-icon-picker-group",
     });

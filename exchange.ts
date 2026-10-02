@@ -59,9 +59,16 @@ export async function buildPackage(
   const ext = mapping.extEntries();
   const refs: string[] = [];
   for (const [, entry] of [...entries, ...ext]) refs.push(...refsOf(entry));
-  const fullMapping: IconMapping = Object.fromEntries(entries);
+  const fullMapping: IconMapping = {};
+  for (const [path, entry] of entries) fullMapping[path] = entry;
   if (ext.length > 0) {
-    fullMapping[EXT_KEY] = Object.fromEntries(ext) as unknown as MappingEntry;
+    // Zur Laufzeit ist die Dateityp-Sektion eine Map Endung -> Eintrag.
+    // IconMapping erlaubt an der Wertposition nur string | MappingEntry,
+    // deshalb der Cast. Das Object.fromEntries davor war die Quelle der
+    // untypisierten Zuweisung, die Loop ersetzt es ohne any.
+    const extSection: Record<string, MappingEntry> = {};
+    for (const [extName, entry] of ext) extSection[extName] = entry;
+    fullMapping[EXT_KEY] = extSection as unknown as MappingEntry;
   }
   return {
     version: 1,
@@ -138,7 +145,7 @@ export function collectImportEntries(
       skipped++;
       continue;
     }
-    const entry = normalizeEntry(value as string | MappingEntry);
+    const entry = normalizeEntry(value);
     if (!entry || !parseIconRef(entry.icon)) {
       skipped++;
       continue;
@@ -184,7 +191,7 @@ export function importIcons(
   getFolder: () => string,
   onDone: () => void,
 ): void {
-  const input = document.createElement("input");
+  const input = document.createEl("input");
   input.type = "file";
   input.accept = "application/json,.json";
   input.onchange = () => {

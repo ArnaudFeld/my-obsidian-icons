@@ -175,7 +175,7 @@ class IconWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const span = document.createElement("span");
+    const span = document.createSpan();
     const ref = this.darkMode && this.dark ? this.dark : this.ref;
     void renderIconInto(span, ref, this.store, {
       size: this.size,
@@ -533,7 +533,7 @@ export default class MoiPlugin extends Plugin {
     const path = typeof file === "string" ? file : file.path;
     if (this.mapping.isMappingPath(path)) {
       void this.mapping.load().then(() => {
-        this.explorer.refresh();
+        void this.explorer.refresh();
         this.chrome.refreshSoon();
       });
       return;
@@ -1038,7 +1038,7 @@ export default class MoiPlugin extends Plugin {
     let m: RegExpExecArray | null;
     let last = 0;
     let found = false;
-    const frag = document.createDocumentFragment();
+    const frag = createFragment();
 
     while ((m = re.exec(text)) !== null) {
       found = true;
@@ -1049,7 +1049,7 @@ export default class MoiPlugin extends Plugin {
       if (!ref || ref.kind === "emoji") {
         frag.appendText(m[0]);
       } else {
-        const span = document.createElement("span");
+        const span = document.createSpan();
         await renderIconInto(
           span,
           resolveDarkRef(ref, dark, this.settings.autoLightVariant),
@@ -1205,10 +1205,9 @@ class MoiSettingTab extends PluginSettingTab {
       const row = new Setting(containerEl)
         .setName(`*.${ext}`)
         .setDesc(entry.icon);
-      const preview = document.createElement("span");
+      const preview = document.createSpan();
       preview.addClass("obsidian-icon-inline");
-      preview.style.width = "18px";
-      preview.style.height = "18px";
+      preview.setCssStyles({ width: "18px", height: "18px" });
       row.settingEl.prepend(preview);
       const ref = parseIconRef(entry.icon);
       if (ref) {

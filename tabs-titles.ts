@@ -77,9 +77,8 @@ export class TabsTitles {
       const tabEl = (leaf as unknown as { tabHeaderInnerIconEl?: HTMLElement })
         .tabHeaderInnerIconEl;
       if (tabEl) this.restoreTab(leaf, tabEl);
-      const titleEl = leaf.view.containerEl.querySelector(
-        ".inline-title",
-      ) as HTMLElement | null;
+      const titleEl =
+        leaf.view.containerEl.querySelector<HTMLElement>(".inline-title");
       if (titleEl) {
         titleEl.querySelector(":scope > .obsidian-icon-title")?.remove();
         delete titleEl.dataset.obsidianIconTitle;
@@ -127,9 +126,8 @@ export class TabsTitles {
       if (!entry) this.restoreTab(leaf, tabEl);
       else await this.paintTab(leaf, tabEl, entry);
     }
-    const titleEl = leaf.view.containerEl.querySelector(
-      ".inline-title",
-    ) as HTMLElement | null;
+    const titleEl =
+      leaf.view.containerEl.querySelector<HTMLElement>(".inline-title");
     if (titleEl) {
       const entry = path && opts.title ? this.resolveForPath(path, dark) : null;
       const key = entry
@@ -222,7 +220,7 @@ export class TabsTitles {
   ): Promise<void> {
     const ref = parseIconRef(entry.icon);
     if (!ref) return;
-    const badge = document.createElement("span");
+    const badge = document.createSpan();
     badge.addClass("obsidian-icon-title");
     await renderIconInto(badge, ref, this.store, {
       color: entry.color,
