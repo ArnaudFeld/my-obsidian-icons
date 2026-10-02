@@ -41,8 +41,8 @@
   margin-bottom: 16px;
 }
 
-.moi-settings-head h2 {
-  margin: 0;
+.moi-settings-name {
+  font-size: var(--font-ui-medium);
 }
 
 .moi-settings-slogan {

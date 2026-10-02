@@ -1165,7 +1165,12 @@ class MoiSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     const head = containerEl.createDiv({ cls: "moi-settings-head" });
-    head.createEl("h2", { text: "M.O.I. – My Obsidian Icons" });
+    // Keine Ueberschrift: Obsidian empfiehlt setHeading, und ohne Sektionen
+    // dort gar keine. Name und Slogan stehen als Text darueber.
+    head.createEl("strong", {
+      text: "M.O.I. – My Obsidian Icons",
+      cls: "moi-settings-name",
+    });
     head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
     new Setting(containerEl)
       .setName(t("set.iconFolder.name"))

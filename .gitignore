@@ -8,3 +8,7 @@ session*.json
 
 # Quelle der Banner, nicht Teil des Repos
 moi_screenshot_1.jpg
+
+# Build-Artefakt, gehoert nur ins Release
+# Ausschliessen von .prettierignore ist trotzdem sinnvoll
+main.js
