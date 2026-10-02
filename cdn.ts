@@ -451,6 +451,6 @@ export class CdnCache {
     window.clearTimeout(this.saveTimer);
     if (!this.dirty) return;
     this.dirty = false;
-    this.persist.save(Object.fromEntries(this.cache));
+    this.persist.save(this.cacheRecord());
   }
 }

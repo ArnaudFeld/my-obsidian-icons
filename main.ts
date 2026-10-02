@@ -5,6 +5,7 @@ import {
   Plugin,
   PluginSettingTab,
   Setting,
+  SettingDefinitionItem,
   TAbstractFile,
   TFile,
   TFolder,
@@ -1161,198 +1162,222 @@ class MoiSettingTab extends PluginSettingTab {
     super(app, plugin);
   }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-    const head = containerEl.createDiv({ cls: "moi-settings-head" });
-    // Keine Ueberschrift: Obsidian empfiehlt setHeading, und ohne Sektionen
-    // dort gar keine. Name und Slogan stehen als Text darueber.
-    head.createEl("strong", {
-      text: "My Own Icons",
-      cls: "moi-settings-name",
-    });
-    head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
-    new Setting(containerEl)
-      .setName(t("set.iconFolder.name"))
-      .setDesc(t("set.iconFolder.desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("_assets/icons")
-          .setValue(this.plugin.settings.iconFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.iconFolder =
-              normalizeFolder(value) || DEFAULT_SETTINGS.iconFolder;
-            this.plugin.saveSettingsSoon();
-          }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.mappingFile.name"))
-      .setDesc(t("set.mappingFile.desc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("_assets/icon-mapping.json")
-          .setValue(this.plugin.settings.mappingFile)
-          .onChange(async (value) => {
-            this.plugin.settings.mappingFile =
-              normalizeFolder(value) || DEFAULT_SETTINGS.mappingFile;
-            this.plugin.saveSettingsSoon();
-          }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.ext.name"))
-      .setDesc(t("set.ext.desc"));
-    for (const [ext, entry] of this.plugin.iconMapping().extEntries()) {
-      const row = new Setting(containerEl)
-        .setName(`*.${ext}`)
-        .setDesc(entry.icon);
-      const preview = document.createSpan();
-      preview.addClass("obsidian-icon-inline");
-      preview.setCssStyles({ width: "18px", height: "18px" });
-      row.settingEl.prepend(preview);
-      const ref = parseIconRef(entry.icon);
-      if (ref) {
-        void renderIconInto(preview, ref, this.plugin.iconStore(), {
-          color: entry.color,
-        });
-      }
-      row
-        .addButton((button) =>
-          button.setButtonText(t("set.ext.change")).onClick(() => {
-            this.plugin.openExtPicker(
-              ext,
-              {
-                icon: entry.icon,
-                ...(entry.color ? { color: entry.color } : {}),
-                ...(entry.size ? { size: entry.size } : {}),
-                ...(entry.iconDark ? { iconDark: entry.iconDark } : {}),
-              },
-              () => this.display(),
-            );
-          }),
-        )
-        .addButton((button) =>
-          button.setButtonText("✕").onClick(async () => {
-            await this.plugin.iconMapping().removeExt(ext);
-            this.plugin.refreshViews();
-            this.display();
-          }),
-        );
+  /**
+   * Die Steuerelemente schreiben nicht ueber saveData, das Plugin haelt den
+   * Icon Cache und die Favoriten im selben Envelope. Ohne diese beiden Hooks
+   * wuerde Obsidian beim Speichern eines Schalters den Cache überschreiben.
+   */
+  getControlValue(key: string): unknown {
+    return this.plugin.settings[key as keyof MoiSettings];
+  }
+
+  setControlValue(key: string, value: unknown): void {
+    const k = key as keyof MoiSettings;
+    if (k === "iconFolder") {
+      this.plugin.settings.iconFolder =
+        normalizeFolder(String(value)) || DEFAULT_SETTINGS.iconFolder;
+      this.plugin.saveSettingsSoon();
+      return;
     }
+    if (k === "mappingFile") {
+      this.plugin.settings.mappingFile =
+        normalizeFolder(String(value)) || DEFAULT_SETTINGS.mappingFile;
+      this.plugin.saveSettingsSoon();
+      return;
+    }
+    // Nur die sieben Schalter, keine fremden Schluessel annehmen.
+    if (typeof value === "boolean" && k in DEFAULT_SETTINGS) {
+      (this.plugin.settings[k] as boolean) = value;
+      void this.plugin.saveSettings();
+    }
+  }
+
+  getSettingDefinitions(): SettingDefinitionItem[] {
     let newExt = "";
-    new Setting(containerEl)
-      .setName(t("set.ext.add.name"))
-      .setDesc(t("set.ext.add.desc"))
-      .addText((text) =>
-        text.setPlaceholder("md").onChange((value) => {
-          newExt = value;
-        }),
-      )
-      .addButton((button) =>
-        button.setButtonText(t("set.ext.pick")).onClick(() => {
-          const ext = normalizeExt(newExt);
-          if (!ext) {
-            new Notice(t("notice.invalidExt"));
-            return;
-          }
-          this.plugin.openExtPicker(
-            ext,
-            this.plugin.iconMapping().getExt(ext),
-            () => this.display(),
+    return [
+      {
+        name: "My Own Icons",
+        searchable: false,
+        render: (setting) => {
+          const head = setting.settingEl.createDiv({
+            cls: "moi-settings-head",
+          });
+          head.createEl("strong", {
+            text: "My Own Icons",
+            cls: "moi-settings-name",
+          });
+          head.createEl("p", { text: slogan(), cls: "moi-settings-slogan" });
+        },
+      },
+      {
+        name: t("set.iconFolder.name"),
+        desc: t("set.iconFolder.desc"),
+        aliases: ["svg", "icon"],
+        control: {
+          type: "text",
+          key: "iconFolder",
+          placeholder: "_assets/icons",
+        },
+      },
+      {
+        name: t("set.mappingFile.name"),
+        desc: t("set.mappingFile.desc"),
+        aliases: ["json"],
+        control: {
+          type: "text",
+          key: "mappingFile",
+          placeholder: "_assets/icon-mapping.json",
+        },
+      },
+      {
+        name: t("set.ext.name"),
+        desc: t("set.ext.desc"),
+        aliases: ["extension", "dateiendung"],
+      },
+      ...this.plugin
+        .iconMapping()
+        .extEntries()
+        .map(([ext, entry]) => ({
+          name: `*.${ext}`,
+          desc: entry.icon,
+          render: (setting: Setting) => {
+            const preview = document.createSpan();
+            preview.addClass("obsidian-icon-inline");
+            preview.setCssStyles({ width: "18px", height: "18px" });
+            setting.settingEl.prepend(preview);
+            const ref = parseIconRef(entry.icon);
+            if (ref) {
+              void renderIconInto(preview, ref, this.plugin.iconStore(), {
+                color: entry.color,
+              });
+            }
+            setting
+              .addButton((button) =>
+                button.setButtonText(t("set.ext.change")).onClick(() => {
+                  this.plugin.openExtPicker(
+                    ext,
+                    {
+                      icon: entry.icon,
+                      ...(entry.color ? { color: entry.color } : {}),
+                      ...(entry.size ? { size: entry.size } : {}),
+                      ...(entry.iconDark ? { iconDark: entry.iconDark } : {}),
+                    },
+                    () => this.update(),
+                  );
+                }),
+              )
+              .addButton((button) =>
+                button.setButtonText("✕").onClick(async () => {
+                  await this.plugin.iconMapping().removeExt(ext);
+                  this.plugin.refreshViews();
+                  this.update();
+                }),
+              );
+          },
+        })),
+      {
+        name: t("set.ext.add.name"),
+        desc: t("set.ext.add.desc"),
+        render: (setting: Setting) => {
+          setting
+            .addText((text) =>
+              text.setPlaceholder("md").onChange((value) => {
+                newExt = value;
+              }),
+            )
+            .addButton((button) =>
+              button.setButtonText(t("set.ext.pick")).onClick(() => {
+                const ext = normalizeExt(newExt);
+                if (!ext) {
+                  new Notice(t("notice.invalidExt"));
+                  return;
+                }
+                this.plugin.openExtPicker(
+                  ext,
+                  this.plugin.iconMapping().getExt(ext),
+                  () => this.update(),
+                );
+              }),
+            );
+        },
+      },
+      {
+        name: t("set.cdn.name"),
+        desc: t("set.cdn.desc"),
+        aliases: ["jsdelivr", "internet"],
+        control: { type: "toggle", key: "cdnEnabled" },
+      },
+      {
+        name: t("set.selfhost.name"),
+        desc: t("set.selfhost.desc"),
+        aliases: ["selfh.st", "homelab"],
+        control: { type: "toggle", key: "selfhostEnabled" },
+      },
+      {
+        name: t("set.stand.name"),
+        desc: this.plugin.catalogStandText(),
+        aliases: ["catalog", "index"],
+        render: (setting: Setting) => {
+          setting.settingEl.empty();
+          setting.addButton((button) =>
+            button.setButtonText(t("set.stand.reload")).onClick(async () => {
+              await this.plugin.reloadCatalogs();
+              this.update();
+            }),
           );
-        }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.cdn.name"))
-      .setDesc(t("set.cdn.desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.cdnEnabled)
-          .onChange(async (value) => {
-            this.plugin.settings.cdnEnabled = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.selfhost.name"))
-      .setDesc(t("set.selfhost.desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.selfhostEnabled)
-          .onChange(async (value) => {
-            this.plugin.settings.selfhostEnabled = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-    const standSetting = new Setting(containerEl)
-      .setName(t("set.stand.name"))
-      .setDesc(this.plugin.catalogStandText())
-      .addButton((button) =>
-        button.setButtonText(t("set.stand.reload")).onClick(async () => {
-          await this.plugin.reloadCatalogs();
-          standSetting.setDesc(this.plugin.catalogStandText());
-        }),
-      );
-    const cacheSetting = new Setting(containerEl)
-      .setName(t("set.cache.name"))
-      .setDesc(t("set.cache.count", { count: this.plugin.cacheSize() }))
-      .addButton((button) =>
-        button.setButtonText(t("set.cache.clear")).onClick(async () => {
-          this.plugin.clearCache();
-          cacheSetting.setDesc(t("set.cache.count", { count: 0 }));
-        }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.autoLight.name"))
-      .setDesc(t("set.autoLight.desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.autoLightVariant)
-          .onChange(async (value) => {
-            this.plugin.settings.autoLightVariant = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.tabs.name"))
-      .setDesc(t("set.tabs.desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.showTabIcons)
-          .onChange(async (value) => {
-            this.plugin.settings.showTabIcons = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.titles.name"))
-      .setDesc(t("set.titles.desc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.showTitleIcons)
-          .onChange(async (value) => {
-            this.plugin.settings.showTitleIcons = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.export.name"))
-      .setDesc(t("set.export.desc"))
-      .addButton((button) =>
-        button.setButtonText(t("set.export.btn")).onClick(() => {
+        },
+      },
+      {
+        name: t("set.cache.name"),
+        desc: t("set.cache.count", { count: this.plugin.cacheSize() }),
+        aliases: ["cache", "cdn"],
+        render: (setting: Setting) => {
+          setting.settingEl.empty();
+          setting.addButton((button) =>
+            button.setButtonText(t("set.cache.clear")).onClick(() => {
+              this.plugin.clearCache();
+              this.update();
+            }),
+          );
+        },
+      },
+      {
+        name: t("set.autoLight.name"),
+        desc: t("set.autoLight.desc"),
+        aliases: ["dark", "theme"],
+        control: { type: "toggle", key: "autoLightVariant" },
+      },
+      {
+        name: t("set.tabs.name"),
+        desc: t("set.tabs.desc"),
+        control: { type: "toggle", key: "showTabIcons" },
+      },
+      {
+        name: t("set.titles.name"),
+        desc: t("set.titles.desc"),
+        aliases: ["inline title"],
+        control: { type: "toggle", key: "showTitleIcons" },
+      },
+      {
+        name: t("set.export.name"),
+        desc: t("set.export.desc"),
+        aliases: ["backup", "json"],
+        action: () => {
           void exportIcons(
             this.plugin.app,
             this.plugin.iconStore(),
             this.plugin.iconMapping(),
           );
-        }),
-      );
-    new Setting(containerEl)
-      .setName(t("set.import.name"))
-      .setDesc(t("set.import.desc"))
-      .addButton((button) =>
-        button.setButtonText(t("set.import.btn")).onClick(() => {
+        },
+      },
+      {
+        name: t("set.import.name"),
+        desc: t("set.import.desc"),
+        aliases: ["restore", "json"],
+        action: () => {
           this.plugin.importPackage();
-        }),
-      );
+        },
+      },
+    ];
   }
 }
